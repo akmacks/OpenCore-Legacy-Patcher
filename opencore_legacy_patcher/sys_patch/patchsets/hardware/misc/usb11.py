@@ -50,7 +50,7 @@ class USB11Controller(BaseHardware):
         # Ref: https://techcommunity.microsoft.com/t5/microsoft-usb-blog/reasons-to-avoid-companion-controllers/ba-p/270710
         if (
             smbios_data.smbios_dictionary[self._computer.real_model]["CPU Generation"] <= cpu_data.CPUGen.penryn.value or \
-            self._computer.real_model in ["MacPro4,1", "MacPro5,1", "Xserve3,1"]
+            self._computer.real_model in ["MacPro4,1", "MacPro5,1", "Xserve3,1", "Macmini5,1", "Macmini5,2", "Macmini5,3"]
         ):
             return True
 
