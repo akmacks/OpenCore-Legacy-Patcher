@@ -211,23 +211,45 @@ Still broken → audit `NonMetal.py` for XNU 25 payload gaps.
 
 ---
 
-## OCLP Downloaded Package — MetallibSupportPkg 15.4-24E248
+## OCLP Downloaded Packages (2026-04-08)
 
-OCLP 2.4.1 pre-fetched this when it detected the Tahoe 26.4 download:
+When OCLP 2.4.1 detected the macOS Tahoe 26.4 download and displayed the "Preparing for macOS Software Update" dialog, it pre-fetched **two packages** via `gui_cache_os_update.py` (a LaunchAgent GUI code path — no standard Dortania log is generated for this event):
+
+---
+
+### Package 1 — Kernel Debug Kit for Tahoe 26.4 ⭐ THE 25-PREFIX PACKAGE
+
+**`/Library/Developer/KDKs/KDK_26.4_25E246.pkg`**
+
+- **What it is:** Apple's official Kernel Debug Kit for macOS Tahoe 26.4 (build 25E246). Contains kernel symbols, headers, and debug kernels needed to compile and verify kernel extensions against the Tahoe XNU 25 kernel.
+- **Why OCLP needs it:** Required for root patching on Ventura+ (XNU ≥ ventura). `kdk_handler.py` downloads it with `only_install_backup=True` — saves the .pkg but does not extract/install the full `.kdk` folder. OCLP extracts as needed during root patching.
+- **Size:** 1.1 GB
+- **SHA256:** `8c6879cb7e4ccf96039cf08bcdbfc98c5520823dd928cc91f16d480483fbfe9f`
+- **Downloaded:** 2026-04-08 at 11:36 AM
+- **Status:** .pkg backup present; `.kdk` folder NOT yet extracted
+
+---
+
+### Package 2 — MetallibSupportPkg 15.4-24E248 (Sequoia fallback)
 
 **`/Library/Application Support/Dortania/MetallibSupportPkg/15.4-24E248/`**
 
-**What:** 151 compiled Metal shader `.metallib` files from macOS Sequoia 15.4 (build 24E248).
-Covers CoreImage, QuartzCore, Metal, SceneKit, SkyLight, VideoProcessing, SwiftUI, and more.
-
-**Why:** Tahoe uses a Metal-only renderer. OCLP injects these Sequoia metallibs to bridge
-non-Metal GPUs (Sandy Bridge, Ivy Bridge, Kepler, TeraScale) into the Metal pipeline.
-Without them the desktop is unusable on non-Metal hardware after an OS update.
-
+- **What it is:** 151 compiled Metal shader `.metallib` files from macOS Sequoia 15.4 (build 24E248). Covers CoreImage, QuartzCore, Metal, SceneKit, SkyLight, VideoProcessing, SwiftUI, and more.
+- **Why OCLP needs it:** Tahoe uses a Metal-only renderer. OCLP injects these Sequoia metallibs to bridge non-Metal GPUs (Sandy Bridge, Ivy Bridge, Kepler, TeraScale) into the Metal pipeline. Without them the desktop is unusable on non-Metal hardware after an OS update.
 - **Size:** 183 MB, 151 files
 - **Local forensic copy:** `docs/forensic/MetallibSupportPkg/15.4-24E248/` (gitignored)
 - **Forensic manifest:** `docs/forensic/MetallibSupportPkg/MANIFEST.md` (150 SHA256 checksums)
 - **Finder:** already opened at `/Library/Application Support/Dortania/MetallibSupportPkg/`
+
+---
+
+### ⚠️ Critical Gap: MetallibSupportPkg Has Zero Tahoe Entries
+
+The Dortania MetallibSupportPkg manifest at `https://dortania.github.io/MetallibSupportPkg/manifest.json` contains **80 entries total, all Sequoia (24-prefix) or earlier — zero Tahoe (25-prefix) entries**. The latest entries are Sequoia 15.0 betas.
+
+**Implication:** When OCLP runs root patches on Tahoe, `metallib_handler.py` will fall back to the closest available version — Sequoia 15.4 metallibs. This may work (Metal API compatibility between Sequoia and Tahoe is likely good), but is untested on Tahoe. If the desktop or GPU-accelerated compositing breaks despite the Sandy Bridge patches, this is the first thing to investigate.
+
+**What this means for the project:** The Sequoia 15.4 metallibs are already pre-fetched and ready. Run root patches and observe results — if the Metal shim works, no action needed. If not, a new `MetallibSupportPkg` entry for Tahoe 26.4 will need to be contributed to Dortania's manifest.
 
 ---
 
@@ -251,6 +273,8 @@ Step 8  → Source hardening + push (Phase 8)
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | BCM5722 kernel patch bytes changed in 26.4 | Medium | Re-derive from 26.4 kernel; update config.plist |
+| MetallibSupportPkg manifest has no Tahoe (25-prefix) entries | Medium | Falls back to Sequoia 15.4 metallibs; monitor for Metal compositor breakage after root patches |
+| KDK .pkg saved but .kdk not yet extracted | Low | OCLP extracts on-demand during root patching; verify at patch time |
 | Wi-Fi payload `12.7.2-25` missing | High | Copy `12.7.2-24` or apply code cap |
 | Sandy Bridge NonMetal payload gaps beyond `legacy_accel_support` fix | Medium | Audit `NonMetal.py` for XNU 25 |
 | BCM2046 BT not supported on Tahoe USB HCI path | Medium | Write `LegacyBluetooth` patchset |
