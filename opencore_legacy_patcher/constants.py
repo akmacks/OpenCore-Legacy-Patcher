@@ -147,7 +147,9 @@ class Constants:
         self.start_build_install:       bool = False  # Determine if build install should be started
         self.host_is_non_metal:         bool = False  # Determine if host is non-metal (ie. enable UI hacks)
         self.needs_to_open_preferences: bool = False  # Determine if preferences need to be opened
-        self.host_is_hackintosh:        bool = False  # Determine if host is Hackintosh
+        self.host_is_hackintosh:              bool = False  # Determine if host is Hackintosh
+        self.is_patching_external_volume:     bool = False  # Determine if patching an external/TDM volume (bypass host security checks)
+        self.is_patching_external_volume: bool = False  # Determine if patching an external volume (eg. Target Disk Mode)
         self.should_nuke_kdks:          bool = True  #  Determine if KDKs should be nuked if unused in /L*/D*/KDKs
         self.launcher_binary:            str = None  #  Determine launch binary path (ie. Python vs PyInstaller)
         self.launcher_script:            str = None  #  Determine launch file path   (None if PyInstaller)

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+
+    <title>Bridge Restore</title>
+    <organization>com.openclaw</organization>
+    <domains enable_localSystem="true" enable_currentUserHome="false"/>
+    <options customize="never" require-scripts="true" hostArchitectures="x86_64"/>
+
+    <!-- Branding -->
+    <welcome    file="welcome.html"    mime-type="text/html"/>
+    <license    file="license.html"    mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+
+    <!-- Background image (uses AppIcon if present) -->
+    <!-- <background file="background.png" alignment="bottomleft" scaling="none"/> -->
+
+    <!-- Volume check: require macOS 14+ (Sonoma / Tahoe) -->
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="14.0"/>
+        </allowed-os-versions>
+    </volume-check>
+
+    <!-- Architecture check: Intel x86_64 only -->
+    <installation-check script="check_arch()"/>
+    <script>
+    function check_arch() {
+        var arch = system.sysctl('hw.machine');
+        if (arch.indexOf('x86_64') === -1) {
+            my.result.message = 'Bridge Restore requires an Intel (x86_64) Mac.';
+            my.result.fatal = true;
+            return false;
+        }
+        return true;
+    }
+    </script>
+
+    <!-- Package reference -->
+    <pkg-ref id="com.openclaw.bridge-restore"
+             version="1.1.0"
+             auth="root">BridgeRestore-component.pkg</pkg-ref>
+
+    <!-- Install choices -->
+    <choices-outline>
+        <line choice="com.openclaw.bridge-restore"/>
+    </choices-outline>
+
+    <choice id="com.openclaw.bridge-restore"
+            title="Bridge Restore"
+            description="Thunderbolt Bridge connectivity suite for macOS Intel Macs."
+            start_selected="true"
+            start_enabled="true"
+            start_visible="true">
+        <pkg-ref id="com.openclaw.bridge-restore"/>
+    </choice>
+
+</installer-gui-script>

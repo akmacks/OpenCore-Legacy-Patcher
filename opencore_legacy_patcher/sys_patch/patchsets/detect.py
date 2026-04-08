@@ -154,8 +154,11 @@ class HardwarePatchsetDetection:
         Determine if host OS is unsupported
         """
         _min_os = os_data.big_sur.value
-        _max_os = os_data.sequoia.value
+        _max_os = os_data.tahoe.value
         if self._dortania_internal_check() is True:
+            return False
+        # When patching an external volume (eg. Target Disk Mode), host OS version is irrelevant
+        if getattr(self._constants, 'is_patching_external_volume', False) is True:
             return False
         if self._xnu_major < _min_os or self._xnu_major > _max_os:
             return True
@@ -175,6 +178,10 @@ class HardwarePatchsetDetection:
         """
         Determine if FileVault is enabled
         """
+        # When patching an external volume, host FileVault state is irrelevant
+        if getattr(self._constants, 'is_patching_external_volume', False) is True:
+            return False
+
         # macOS 11.0 introduced a FileVault check for root patching
         if self._xnu_major < os_data.big_sur.value:
             return False
@@ -192,6 +199,9 @@ class HardwarePatchsetDetection:
         """
         Determine if System Integrity Protection is enabled
         """
+        # When patching an external volume, host SIP state is irrelevant
+        if getattr(self._constants, 'is_patching_external_volume', False) is True:
+            return False
         return utilities.csr_decode(configs)
 
 
@@ -199,6 +209,9 @@ class HardwarePatchsetDetection:
         """
         Determine if SecureBootModel is enabled
         """
+        # When patching an external volume, host SecureBootModel state is irrelevant
+        if getattr(self._constants, 'is_patching_external_volume', False) is True:
+            return False
         return utilities.check_secure_boot_level()
 
 
@@ -206,6 +219,9 @@ class HardwarePatchsetDetection:
         """
         Determine if AMFI is enabled
         """
+        # When patching an external volume, host AMFI state is irrelevant
+        if getattr(self._constants, 'is_patching_external_volume', False) is True:
+            return False
         return not amfi_detect.AmfiConfigurationDetection().check_config(self._override_amfi_level(level))
 
 

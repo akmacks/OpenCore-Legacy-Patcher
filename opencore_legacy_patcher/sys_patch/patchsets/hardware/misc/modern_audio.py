@@ -55,12 +55,13 @@ class ModernAudio(BaseHardware):
     def _modern_audio_patches(self) -> dict:
         """
         Patches for Modern Audio
+        Note: Tahoe (26.x) uses the Sequoia 15.2 AppleHDA.kext as no Tahoe-specific build exists yet
         """
         return {
             "Modern Audio": {
                 PatchType.OVERWRITE_SYSTEM_VOLUME: {
                     "/System/Library/Extensions": {
-                        "AppleHDA.kext":      "26.0 Beta 1",
+                        "AppleHDA.kext":      "15.2",
                     },
                 },
             },

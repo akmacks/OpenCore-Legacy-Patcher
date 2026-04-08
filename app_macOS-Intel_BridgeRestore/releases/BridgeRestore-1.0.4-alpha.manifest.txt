@@ -1,0 +1,55 @@
+Bridge Restore v1.0.4-alpha — Release Manifest
+Built: 2026-04-03 13:46:36
+Package: BridgeRestore-1.0.4-alpha.pkg ( 40K)
+Identifier: com.openclaw.bridge-restore
+
+PAYLOAD FILES (31 total):
+/.DS_Store
+/Applications/.DS_Store
+/Applications/BridgeRestore.app/Contents/Info.plist
+/Applications/BridgeRestore.app/Contents/MacOS/BridgeRestore
+/usr/local/bin/bridge-restore
+/usr/local/bin/bridge-restore-gui
+/usr/local/bin/rescue-bot
+/usr/local/bin/tunnel-mini
+/usr/local/bin/tunnel-mini-status
+/usr/local/bin/tunnel-watchdog-mbp
+/usr/local/share/bridge-restore/launchd/local.bridge-ip.plist
+/usr/local/share/bridge-restore/launchd/local.mbp-watchdog.plist
+/usr/local/share/bridge-restore/launchd/local.mini-watchdog.plist
+/usr/local/share/bridge-restore/launchd/local.nat-persist.plist
+/usr/local/share/bridge-restore/launchd/local.tunnel-pro.plist
+/usr/local/share/bridge-restore/launchd/local.tunnel-watchdog-mbp.plist
+/usr/local/share/bridge-restore/man/bridge-restore.1
+/usr/local/share/bridge-restore/man/bridge-restore.xml
+/usr/local/share/bridge-restore/scripts/bridge-drop-monitor.sh
+/usr/local/share/bridge-restore/scripts/bridge-restore-aliases.sh
+/usr/local/share/bridge-restore/scripts/bridge-restore-app.sh
+/usr/local/share/bridge-restore/scripts/bridge-restore-gui.sh
+/usr/local/share/bridge-restore/scripts/install-on-mbp.sh
+/usr/local/share/bridge-restore/scripts/install-on-mini.sh
+/usr/local/share/bridge-restore/scripts/machine-identity.sh
+/usr/local/share/bridge-restore/scripts/mbp-watchdog.sh
+/usr/local/share/bridge-restore/scripts/reconnect-mini.sh
+/usr/local/share/bridge-restore/scripts/rescue-bot.sh
+/usr/local/share/bridge-restore/scripts/tunnel-mini.sh
+/usr/local/share/bridge-restore/scripts/tunnel-pro.sh
+/usr/local/share/bridge-restore/scripts/tunnel-watchdog-mbp.sh
+
+INSTALLER SCRIPTS:
+  preinstall  — version detection, archive/overwrite dialog
+  postinstall — script deployment, LaunchAgents, Dock prompt
+  preremove   — agent unload, wrapper removal
+
+INSTALL LOCATIONS:
+  /Applications/BridgeRestore.app
+  /usr/local/bin/bridge-restore
+  /usr/local/bin/bridge-restore-gui
+  /usr/local/bin/tunnel-mini
+  /usr/local/bin/tunnel-mini-status
+  /usr/local/share/bridge-restore/scripts/
+  /usr/local/share/bridge-restore/launchd/
+  /usr/local/share/bridge-restore/man/
+  ~/Library/Application Support/BridgeRestore/
+  ~/Library/LaunchAgents/local.{nat-persist,mbp-watchdog,tunnel-pro,bridge-ip}.plist
+  /etc/pf.anchors/bridge-restore

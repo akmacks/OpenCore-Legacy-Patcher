@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//Apple//DTD Apple Help Reference 1.0//EN"
+  "http://www.apple.com/DTDs/AppleHelpReference-1.0.dtd">
+<reference id="bridge-restore-reference" version="1.0.2-alpha" lang="en">
+
+  <metadata>
+    <title>Bridge Restore Reference Manual</title>
+    <identifier>com.openclaw.bridge-restore.help</identifier>
+    <description>Complete command reference for the Bridge Restore Thunderbolt connectivity suite.</description>
+    <version>1.0.2-alpha</version>
+    <date>2026-03-29</date>
+  </metadata>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section id="overview">
+    <title>Overview</title>
+    <description>
+      Bridge Restore is a macOS Thunderbolt Bridge connectivity suite for Intel
+      non-T2 Macs. It maintains a persistent bidirectional connection between a
+      gateway host (MacBook Pro, shares internet) and client hosts (Mac mini etc.)
+      via a Thunderbolt Bridge (192.168.2.x/24) and a reverse SSH tunnel.
+    </description>
+    <subsection id="roles">
+      <title>Machine Roles</title>
+      <p>Role is determined by hardware UUID and stored in config.json.</p>
+      <roles>
+        <role id="gateway">
+          <name>Gateway</name>
+          <description>Shares internet via Thunderbolt Bridge. Owns bridge0 IP 192.168.2.1.
+          Runs: tunnel-mini, nat-persist, mbp-watchdog.</description>
+          <example-hardware>MacBook Pro 16,1 (MacBookPro16,1)</example-hardware>
+        </role>
+        <role id="client">
+          <name>Client</name>
+          <description>Receives internet via bridge. Owns bridge0 IP 192.168.2.2.
+          Runs: tunnel-pro, bridge-ip keeper.</description>
+          <example-hardware>Mac mini Server Late 2011 (Macmini5,3)</example-hardware>
+        </role>
+      </roles>
+    </subsection>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section id="commands">
+    <title>Commands</title>
+
+    <command id="default">
+      <syntax>bridge-restore</syntax>
+      <description>Auto-detect role and run a full restore sequence.</description>
+      <roles>gateway, client</roles>
+      <sequence>
+        <step>Fix bridge0 IP to expected value</step>
+        <step>Verify/restore ARP for peer</step>
+        <step>Restore NAT rules and ip_forwarding (gateway)</step>
+        <step>Bounce Thunderbolt port if inactive</step>
+        <step>Re-open reverse SSH tunnel</step>
+        <step>Rebuild SSH ControlMaster</step>
+        <step>Invoke AI fallback if all else fails</step>
+      </sequence>
+    </command>
+
+    <command id="status">
+      <syntax>bridge-restore --status</syntax>
+      <description>Print current connection state. No remediation performed.</description>
+      <roles>gateway, client</roles>
+      <output>Role, bridge0 IP, tunnel status, ControlMaster alive, peer hostname, internet IP.</output>
+    </command>
+
+    <command id="diag">
+      <syntax>bridge-restore --diag</syntax>
+      <aliases>bridge-restore --status (brief variant)</aliases>
+      <description>Run full OSI L1–L7 diagnostic engine.</description>
+      <roles>gateway, client</roles>
+      <layers>
+        <layer id="L1"><name>Physical</name><check>bridge0 status, active Thunderbolt port</check></layer>
+        <layer id="L2"><name>Datalink</name><check>ARP table for peer, bridge0 IP, APIPA detection</check></layer>
+        <layer id="L3"><name>Network</name><check>ICMP ping to peer</check></layer>
+        <layer id="L4"><name>Transport</name><check>TCP port check (2222 on gateway, port 22 on client)</check></layer>
+        <layer id="L5"><name>Session</name><check>tunnel-pro process running</check></layer>
+        <layer id="L6"><name>NAT/Routing</name><check>ip_forwarding sysctl, pf NAT rules loaded</check></layer>
+        <layer id="L7"><name>Application</name><check>External IP via curl (internet reachability)</check></layer>
+      </layers>
+    </command>
+
+    <command id="watchdog">
+      <syntax>bridge-restore --watchdog</syntax>
+      <description>Start embedded watchdog daemon in foreground.</description>
+      <roles>gateway, client</roles>
+      <behavior>
+        <p>Polls peer reachability every 30 s (configurable via watchdog.interval_seconds).</p>
+        <p>After 10 consecutive failures, presents a macOS action menu:
+        Check every 2 min / 5 min / Pause / Open Troubleshooter.</p>
+      </behavior>
+    </command>
+
+    <command id="sever">
+      <syntax>bridge-restore --sever</syntax>
+      <description>Force Thunderbolt physical-layer re-negotiation. Gateway only.</description>
+      <roles>gateway</roles>
+      <methods>
+        <method id="1">Bridge member remove/re-add (softest)</method>
+        <method id="2">networksetup Thunderbolt Bridge service off/on</method>
+        <method id="3">ifconfig port down/up bounce (10 s)</method>
+        <method id="4">Full bridge0 teardown and rebuild (most aggressive)</method>
+      </methods>
+      <note>Exits after first successful method. Each method is followed by ARP verification.</note>
+    </command>
+
+    <command id="ai">
+      <syntax>bridge-restore --ai</syntax>
+      <description>Invoke local Ollama AI for fix suggestions.</description>
+      <roles>gateway, client</roles>
+      <model-preference>llama3.2:3b, qwen2.5:3b, gemma2:2b, gpt-oss:20b</model-preference>
+      <fallback>Prints manual recovery steps if no model available.</fallback>
+    </command>
+
+    <command id="bughunt">
+      <syntax>bridge-restore --bughunt</syntax>
+      <description>Deploy bridge-drop monitor to client and collect drop-correlation data.</description>
+      <roles>gateway</roles>
+      <steps>
+        <step>TCP bidirectional pre-flight check</step>
+        <step>Deploy 2-second monitor loop to client via tunnel</step>
+        <step>Collect 5 minutes of drop event data</step>
+        <step>Feed log to local Ollama for root-cause analysis</step>
+        <step>Write Markdown report to app-logs/bughunt-YYYYMMDD-HHMM.md</step>
+      </steps>
+      <requires>Reverse SSH tunnel (port 2222) must be open before running.</requires>
+    </command>
+
+    <command id="wizard">
+      <syntax>bridge-restore --wizard</syntax>
+      <description>First-run Setup Wizard (AppleScript GUI).</description>
+      <roles>gateway, client</roles>
+      <configures>Role, gateway IP, client name/IP, watchdog, auto-retry, diagnostic layers.</configures>
+      <output-file>~/.config/bridge-restore/config.json</output-file>
+    </command>
+
+    <command id="prefs">
+      <syntax>bridge-restore --prefs</syntax>
+      <description>Open Preferences window (AppleScript GUI, 3 tabs).</description>
+      <roles>gateway, client</roles>
+      <tabs>
+        <tab>Hosts &amp; Roles — gateway/client IPs and hostnames</tab>
+        <tab>Diagnostic Layers — enable/disable L1–L7 individually</tab>
+        <tab>Watchdog &amp; Retry — interval, enable/disable</tab>
+      </tabs>
+    </command>
+
+    <command id="gui">
+      <syntax>bridge-restore --gui</syntax>
+      <description>Launch full AppleScript GUI dashboard.</description>
+      <roles>gateway, client</roles>
+      <launch-options>
+        <option id="gui-mode">Interactive dashboard: Main Menu → Restore / Diagnostics / Watchdog / AI / Bug Hunt / Prefs / Logs / Help</option>
+        <option id="cli-mode">Opens named Terminal window "Bridge-Restore" with --help display</option>
+      </launch-options>
+    </command>
+
+    <command id="debug">
+      <syntax>bridge-restore --debug</syntax>
+      <description>Run full restore with bash -x tracing. Verbose.</description>
+      <roles>gateway, client</roles>
+    </command>
+
+    <command id="help">
+      <syntax>bridge-restore --help</syntax>
+      <description>Print command reference to stdout.</description>
+    </command>
+
+    <command id="version">
+      <syntax>bridge-restore --version</syntax>
+      <description>Print version string and exit.</description>
+    </command>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section id="companion-commands">
+    <title>Companion Commands</title>
+
+    <command id="tunnel-mini">
+      <syntax>tunnel-mini</syntax>
+      <description>Full gateway-side restore. Restores bridge0=192.168.2.1, NAT, ARP,
+      opens ControlMaster via localhost:2222. Gateway/MBP only.</description>
+      <requires>tunnel-pro must already be running on the client.</requires>
+    </command>
+
+    <command id="tunnel-pro">
+      <syntax>tunnel-pro (run on client/mini)</syntax>
+      <description>Full client-side restore. Restores bridge0=192.168.2.2,
+      opens reverse SSH tunnel ssh -R 2222:localhost:22 gateway. Client only.</description>
+    </command>
+
+    <command id="tunnel-mini-status">
+      <syntax>tunnel-mini-status</syntax>
+      <description>Quick one-line status. Alias for bridge-restore --status.</description>
+    </command>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section id="configuration">
+    <title>Configuration Reference</title>
+    <file>~/.config/bridge-restore/config.json</file>
+
+    <config-keys>
+      <key id="my_role"><name>my_role</name><type>string</type><values>gateway, client</values>
+        <description>Overrides UUID-based auto-detection.</description></key>
+      <key id="gateway.ip"><name>gateway.ip</name><type>string</type><default>192.168.2.1</default></key>
+      <key id="clients[0].ip"><name>clients[0].ip</name><type>string</type><default>192.168.2.2</default></key>
+      <key id="clients[0].tunnel_port"><name>clients[0].tunnel_port</name><type>integer</type><default>2222</default></key>
+      <key id="watchdog.enabled"><name>watchdog.enabled</name><type>boolean</type><default>false</default></key>
+      <key id="watchdog.interval_seconds"><name>watchdog.interval_seconds</name><type>integer</type><default>30</default></key>
+      <key id="diagnostics.layerN"><name>diagnostics.layer1_physical … layer7_app_connectivity</name>
+        <type>boolean</type><default>true</default></key>
+    </config-keys>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section id="files">
+    <title>Important File Locations</title>
+    <files>
+      <file id="config"><path>~/.config/bridge-restore/config.json</path><description>Runtime configuration</description></file>
+      <file id="app-scripts"><path>~/Library/Application Support/BridgeRestore/scripts/</path><description>Installed scripts</description></file>
+      <file id="launchagent-watchdog"><path>~/Library/LaunchAgents/local.mbp-watchdog.plist</path><description>Gateway watchdog daemon</description></file>
+      <file id="launchagent-natpersist"><path>~/Library/LaunchAgents/local.nat-persist.plist</path><description>Boot-time NAT restore</description></file>
+      <file id="launchagent-tunnelpro"><path>~/Library/LaunchAgents/local.tunnel-pro.plist</path><description>Client tunnel auto-restart</description></file>
+      <file id="launchagent-bridgeip"><path>~/Library/LaunchAgents/local.bridge-ip.plist</path><description>Client bridge IP keeper</description></file>
+      <file id="pf-anchor"><path>/etc/pf.anchors/bridge-restore</path><description>Persistent NAT rules</description></file>
+      <file id="logs"><path>~/Library/Logs/BridgeRestore/</path><description>bridge-restore-app.log, mbp-watchdog.log, tunnel-mini.log, tunnel-pro.log, nat-persist.log</description></file>
+      <file id="app-logs"><path>~/dev/projects/apps/app_macOS-Intel_BridgeRestore/app-logs/</path><description>Session logs, bughunt reports</description></file>
+      <file id="archives"><path>~/Library/Application Support/BridgeRestore/archives/</path><description>Archived previous installations (zip)</description></file>
+    </files>
+  </section>
+
+</reference>

@@ -1,0 +1,197 @@
+#!/bin/bash
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  postinstall  — Bridge Restore v1.0.2-alpha (Build 26A03)               ║
+# ║  Runs as root after payload is laid down.                                ║
+# ║  MACHINE-ROLE AWARE — detects Gateway vs Client via hardware UUID        ║
+# ║  NEVER modifies bridge0 IP during install                                ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+INSTALL_USER=$(stat -f "%Su" /dev/console 2>/dev/null || \
+               who | awk '/console/{print $1}' | head -1)
+[[ -z "$INSTALL_USER" ]] && INSTALL_USER="$USER"
+USER_HOME=$(eval echo "~$INSTALL_USER")
+USER_ID=$(id -u "$INSTALL_USER" 2>/dev/null || echo "501")
+
+APP_SUPPORT="$USER_HOME/Library/Application Support/BridgeRestore"
+SCRIPTS_DST="$APP_SUPPORT/scripts"
+SCRIPTS_SRC="/usr/local/share/bridge-restore/scripts"
+LAUNCHD_SRC="/usr/local/share/bridge-restore/launchd"
+LAUNCHD_DST="$USER_HOME/Library/LaunchAgents"
+MAN_SRC="/usr/local/share/bridge-restore/man"
+VERSION="1.0.2-alpha"
+APP_BUNDLE="/Applications/BridgeRestore.app"
+
+mkdir -p "$SCRIPTS_DST" "$LAUNCHD_DST" "$APP_SUPPORT/archives"
+mkdir -p "$USER_HOME/Library/Logs/BridgeRestore"
+mkdir -p "$USER_HOME/.config/bridge-restore"
+mkdir -p "$USER_HOME/.ssh/cm"
+
+LOG="$USER_HOME/Library/Logs/BridgeRestore/install.log"
+log() { echo "[postinstall $(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
+log "=== postinstall starting | v$VERSION | user=$INSTALL_USER ==="
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MACHINE IDENTITY — detect role BEFORE doing anything network-related
+# NEVER modify bridge0 IP during install — only load appropriate agents
+# ══════════════════════════════════════════════════════════════════════════════
+THIS_UUID=$(sudo -u "$INSTALL_USER" system_profiler SPHardwareDataType 2>/dev/null | \
+            awk '/Hardware UUID/{print $3}')
+THIS_MODEL=$(sudo -u "$INSTALL_USER" system_profiler SPHardwareDataType 2>/dev/null | \
+             awk '/Model Identifier/{print $3}')
+MBP_UUID="4B4DFAAB-B77A-5B8F-BE93-85E6F990529F"
+MBP_MODEL="MacBookPro16,1"
+MINI_MODEL="Macmini5,3"
+
+if [[ "$THIS_UUID" == "$MBP_UUID" ]] || [[ "$THIS_MODEL" == "$MBP_MODEL" ]]; then
+  MACHINE_ROLE="gateway"
+  log "Machine role: GATEWAY ($THIS_MODEL)"
+elif [[ "$THIS_MODEL" == "$MINI_MODEL" ]]; then
+  MACHINE_ROLE="client"
+  log "Machine role: CLIENT ($THIS_MODEL)"
+else
+  MACHINE_ROLE="unknown"
+  log "Machine role: UNKNOWN ($THIS_MODEL / $THIS_UUID) — loading client agents only"
+fi
+
+
+# ── Copy scripts to Application Support ──────────────────────────────────────
+log "Copying scripts to $SCRIPTS_DST"
+if [[ -d "$SCRIPTS_SRC" ]]; then
+  cp -R "$SCRIPTS_SRC/." "$SCRIPTS_DST/"
+  chmod +x "$SCRIPTS_DST"/*.sh 2>/dev/null || true
+  chown -R "$INSTALL_USER" "$APP_SUPPORT"
+  log "Scripts deployed ✓"
+else
+  log "WARN: $SCRIPTS_SRC not found"
+fi
+
+echo "$VERSION" > "$APP_SUPPORT/VERSION"
+echo "$MACHINE_ROLE" > "$APP_SUPPORT/ROLE"
+chown "$INSTALL_USER" "$APP_SUPPORT/VERSION" "$APP_SUPPORT/ROLE"
+log "VERSION=$VERSION ROLE=$MACHINE_ROLE written"
+
+# ── /usr/local/bin wrappers ───────────────────────────────────────────────────
+log "Installing /usr/local/bin wrappers"
+for CMD in bridge-restore bridge-restore-app bridge-restore-gui tunnel-mini tunnel-mini-status; do
+  case "$CMD" in
+    bridge-restore|bridge-restore-app) WRAPPER_TARGET="$SCRIPTS_DST/bridge-restore-app.sh" ;;
+    bridge-restore-gui)  WRAPPER_TARGET="$SCRIPTS_DST/bridge-restore-gui.sh" ;;
+    tunnel-mini)         WRAPPER_TARGET="$SCRIPTS_DST/tunnel-mini.sh" ;;
+    tunnel-mini-status)  WRAPPER_TARGET="$SCRIPTS_DST/bridge-restore-app.sh --status" ;;
+  esac
+  printf '#!/bin/bash\nexec bash "%s" "$@"\n' "$WRAPPER_TARGET" > "/usr/local/bin/$CMD"
+  chmod +x "/usr/local/bin/$CMD"
+  log "  /usr/local/bin/$CMD → $WRAPPER_TARGET"
+done
+
+# ── Man page ──────────────────────────────────────────────────────────────────
+if [[ -f "$MAN_SRC/bridge-restore.1" ]]; then
+  mkdir -p /usr/local/share/man/man1
+  cp "$MAN_SRC/bridge-restore.1" /usr/local/share/man/man1/
+  /usr/libexec/makewhatis /usr/local/share/man 2>/dev/null || true
+  log "Man page installed"
+fi
+
+# ── pf NAT anchor — GATEWAY ONLY ─────────────────────────────────────────────
+if [[ "$MACHINE_ROLE" == "gateway" ]]; then
+  if [[ ! -f /etc/pf.anchors/bridge-restore ]]; then
+    cat > /etc/pf.anchors/bridge-restore << 'PF'
+# Bridge Restore NAT — gateway (MBP) only
+nat on en0  inet from 192.168.2.0/24 to any -> (en0)
+nat on en43 inet from 192.168.2.0/24 to any -> (en43)
+pass all
+PF
+    if ! grep -q "bridge-restore" /etc/pf.conf 2>/dev/null; then
+      printf '\n# Bridge Restore NAT anchor\nanchor "bridge-restore"\nload anchor "bridge-restore" from "/etc/pf.anchors/bridge-restore"\n' >> /etc/pf.conf
+    fi
+    log "pf anchor written (gateway)"
+  else
+    log "pf anchor already exists"
+  fi
+fi
+
+
+# ── LaunchAgents — ROLE-AWARE, NEVER loads wrong-machine agents ──────────────
+log "Deploying LaunchAgents for role: $MACHINE_ROLE"
+
+load_agent() {
+  local PLIST="$1" DST="$LAUNCHD_DST/$PLIST.plist" SRC="$LAUNCHD_SRC/$PLIST.plist"
+  [[ -f "$SRC" ]] || { log "  SKIP $PLIST (not in payload)"; return; }
+  cp "$SRC" "$DST"
+  chown "$INSTALL_USER" "$DST"
+  sudo -u "$INSTALL_USER" launchctl unload "$DST" 2>/dev/null || true
+  if sudo -u "$INSTALL_USER" launchctl load "$DST" 2>/dev/null; then
+    log "  ✓ $PLIST loaded"
+  else
+    log "  ⚠ $PLIST failed to load (relogin may be needed)"
+  fi
+}
+
+case "$MACHINE_ROLE" in
+  gateway)
+    # MBP only: NAT persistence, MBP watchdog
+    # NEVER load tunnel-pro or bridge-ip on gateway — those are mini-side
+    load_agent "local.nat-persist"
+    load_agent "local.mbp-watchdog"
+    log "Gateway agents loaded. mini-side agents (tunnel-pro, bridge-ip) NOT loaded on gateway."
+    ;;
+  client)
+    # Mini only: keep bridge IP at 192.168.2.2, auto-restart tunnel-pro
+    # NEVER load mbp-watchdog or nat-persist on client — those are gateway-side
+    load_agent "local.bridge-ip"
+    load_agent "local.tunnel-pro"
+    load_agent "local.mini-watchdog"
+    log "Client agents loaded. gateway-side agents (mbp-watchdog, nat-persist) NOT loaded on client."
+    ;;
+  unknown)
+    # Safe default: only bridge-ip keeper
+    load_agent "local.bridge-ip"
+    log "Unknown role — only bridge-ip loaded. Run bridge-restore --wizard to configure."
+    ;;
+esac
+
+# ── App bundle permissions ────────────────────────────────────────────────────
+[[ -d "$APP_BUNDLE" ]] && chown -R root:wheel "$APP_BUNDLE" && chmod -R 755 "$APP_BUNDLE"
+log "App bundle permissions set"
+
+
+# ── Completion dialog ─────────────────────────────────────────────────────────
+DOCK_CHOICE=$(sudo -u "$INSTALL_USER" osascript << AS 2>/dev/null
+set t to "Bridge Restore v$VERSION — Installation Complete"
+set msg to "✅  Bridge Restore v$VERSION has been installed.
+
+Role detected: $MACHINE_ROLE
+
+Commands available in Terminal:
+  bridge-restore          — auto-restore connection
+  bridge-restore --diag   — run diagnostics
+  bridge-restore --gui    — GUI dashboard
+  bridge-restore --help   — all commands
+  man bridge-restore      — manual
+
+Would you like to add Bridge Restore to your Dock?"
+set r to button returned of (display dialog msg ¬
+  buttons {"Skip", "Open App Now", "Add to Dock"} ¬
+  default button "Add to Dock" cancel button "Skip" ¬
+  with title t with icon note)
+return r
+AS
+)
+
+log "Dock choice: $DOCK_CHOICE"
+case "$DOCK_CHOICE" in
+  "Add to Dock")
+    sudo -u "$INSTALL_USER" defaults write com.apple.dock persistent-apps -array-add \
+      "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>$APP_BUNDLE</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>" \
+      2>/dev/null
+    sudo -u "$INSTALL_USER" killall Dock 2>/dev/null
+    log "Added to Dock ✓" ;;
+  "Open App Now")
+    sudo -u "$INSTALL_USER" open "$APP_BUNDLE" 2>/dev/null &
+    log "App opened" ;;
+  *) log "Dock add skipped" ;;
+esac
+
+log "=== postinstall complete | role=$MACHINE_ROLE | v$VERSION ==="
+exit 0

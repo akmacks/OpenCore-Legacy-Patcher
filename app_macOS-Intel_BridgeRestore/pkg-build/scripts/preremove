@@ -1,0 +1,24 @@
+#!/bin/bash
+# preremove — runs before uninstall (called by pkg receipt removal)
+INSTALL_USER=$(stat -f "%Su" /dev/console 2>/dev/null || who | awk '/console/{print $1}' | head -1)
+[[ -z "$INSTALL_USER" ]] && INSTALL_USER="$USER"
+USER_HOME=$(eval echo "~$INSTALL_USER")
+LOG="$USER_HOME/logs/bridge-restore-install.log"
+log() { echo "[preremove] $*" | tee -a "$LOG"; }
+log "=== preremove starting ==="
+
+# Unload LaunchAgents
+for PLIST in local.nat-persist local.mbp-watchdog local.tunnel-pro local.bridge-ip; do
+  DST="$USER_HOME/Library/LaunchAgents/$PLIST.plist"
+  [[ -f "$DST" ]] && sudo -u "$INSTALL_USER" launchctl unload "$DST" 2>/dev/null && log "Unloaded $PLIST"
+done
+
+# Remove /usr/local/bin wrappers
+for CMD in bridge-restore tunnel-mini tunnel-mini-status bridge-restore-gui; do
+  [[ -f "/usr/local/bin/$CMD" ]] && rm -f "/usr/local/bin/$CMD" && log "Removed /usr/local/bin/$CMD"
+done
+
+# Remove man page
+rm -f /usr/local/share/man/man1/bridge-restore.1 2>/dev/null
+log "=== preremove complete ==="
+exit 0

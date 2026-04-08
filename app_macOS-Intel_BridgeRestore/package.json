@@ -1,0 +1,27 @@
+{
+  "name": "bridge-restore",
+  "version": "1.0.6",
+  "description": "Thunderbolt Bridge connectivity suite — role-aware, AI-assisted restore",
+  "author": "akmacks",
+  "license": "MIT",
+  "platform": "macOS Tahoe 26.x (Intel)",
+  "machines": {
+    "gateway": { "model": "MacBookPro16,1", "uuid": "4B4DFAAB-B77A-5B8F-BE93-85E6F990529F" },
+    "client":  { "model": "Macmini5,3" }
+  },
+  "entry_point": "scripts/bridge-restore-app.sh",
+  "commands": {
+    "bridge-restore-app":  "scripts/bridge-restore-app.sh",
+    "tunnel-mini":         "scripts/tunnel-mini.sh",
+    "tunnel-pro":          "scripts/tunnel-pro.sh",
+    "bridge-restore":      "scripts/bridge-restore-app.sh --diag"
+  },
+  "xcode_target": "macOS App wrapper (future — SwiftUI shell around bash engine)",
+  "todo": [
+    "SwiftUI app wrapper with native Preferences window (Cmd-,)",
+    "MenuBar app status icon showing connection state",
+    "Keychain storage for credentials instead of config.json",
+    "Notarization for distribution",
+    "Auto-update mechanism"
+  ]
+}

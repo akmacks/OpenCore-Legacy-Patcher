@@ -1,0 +1,244 @@
+.TH BRIDGE-RESTORE 1 "March 2026" "Bridge Restore 1.0.2-alpha" "Bridge Restore Manual"
+.SH NAME
+bridge-restore \- Thunderbolt Bridge connectivity manager for macOS Intel Macs
+.SH SYNOPSIS
+.B bridge-restore
+[\fIOPTION\fR]
+.br
+.B bridge-restore
+.B \-\-help
+.br
+.B bridge-restore
+.B \-\-version
+.SH DESCRIPTION
+.B bridge-restore
+maintains a persistent Thunderbolt Bridge connection between a
+.I gateway
+host (typically a MacBook Pro) that shares its internet connection and one or more
+.I client
+hosts (such as a Mac mini Server) that receive connectivity via the bridge.
+.PP
+The tool implements a 7-layer OSI diagnostic engine, a 4-method Thunderbolt
+physical-layer severance/re-negotiation stack, a reverse SSH tunnel manager,
+an SSH ControlMaster lifecycle handler, a role-aware watchdog daemon,
+a local Ollama AI fallback engine, and an optional AppleScript GUI.
+.PP
+Machine roles are determined by hardware UUID and stored in
+.I ~/.config/bridge-restore/config.json.
+All commands respect the detected role; commands that apply only to the
+gateway refuse to run on a client and vice versa.
+.SH OPTIONS
+.TP
+.B (no arguments)
+Auto-detect role and run a full restore sequence: fix bridge0 IP,
+verify ARP, restore NAT rules, re-open reverse SSH tunnel,
+rebuild ControlMaster.
+.TP
+.B \-\-status
+Print current connection state across all OSI layers without taking
+any remediation action.
+.TP
+.B \-\-diag
+Run the full OSI L1–L7 diagnostic engine and print results.
+Individual layers can be toggled in
+.I ~/.config/bridge-restore/config.json
+under the
+.I diagnostics
+key.
+.TP
+.B \-\-debug
+Like the default restore, but with
+.B set \-x
+tracing enabled for full execution visibility.
+.TP
+.B \-\-watchdog
+Start the embedded watchdog daemon in the foreground.
+The daemon polls peer reachability every 30 seconds (configurable)
+and invokes restore automatically on failure.
+After 10 consecutive failures it presents a macOS action menu.
+.TP
+.B \-\-sever
+.I (Gateway only.)
+Force Thunderbolt physical-layer re-negotiation using one of four
+escalating software methods: bridge member remove/re-add; networksetup
+service toggle; ifconfig port bounce; full bridge0 teardown/rebuild.
+Exits after the first method that succeeds.
+.TP
+.B \-\-ai
+Invoke the Ollama AI fallback engine. Runs
+.B \-\-diag
+internally, then submits a structured prompt to the highest-priority
+available local model (preference order: llama3.2:3b, qwen2.5:3b,
+gemma2:2b, gpt-oss:20b). Falls back to manual recovery instructions
+if no model is available.
+.TP
+.B \-\-bughunt
+Deploy a high-frequency bridge-state monitor to the client via the
+reverse SSH tunnel, collect 5 minutes of drop-correlation data,
+feed the log to the local Ollama model, and write a Markdown analysis
+report to
+.I ~/dev/projects/apps/app_macOS-Intel_BridgeRestore/app-logs/.
+.TP
+.B \-\-wizard
+Launch the first-run Setup Wizard (AppleScript GUI). Configures role,
+host IPs, watchdog, auto-retry, and diagnostic layers. Writes
+.I ~/.config/bridge-restore/config.json.
+.TP
+.B \-\-prefs
+Open the Preferences window (AppleScript GUI) with three tabs:
+Hosts & Roles, Diagnostic Layers, Watchdog & Retry.
+.TP
+.B \-\-gui
+Launch the full AppleScript GUI. Prompts whether to run in GUI or
+CLI mode. CLI mode opens a named Terminal window; GUI mode shows the
+interactive dashboard.
+.TP
+.B \-\-help
+Print a command reference to stdout and exit 0.
+.TP
+.B \-\-version
+Print version string and exit 0.
+.SH COMPANION COMMANDS
+.TP
+.B tunnel-mini
+.I (Gateway / MBP only.)
+Full restore sequence for the gateway side: restore bridge0 to
+192.168.2.1, refresh NAT rules, verify ARP for the client, bounce
+the Thunderbolt port if needed, open an SSH ControlMaster to the
+client via the reverse tunnel on port 2222.
+.TP
+.B tunnel-pro
+.I (Client / Mini only.)
+Full restore sequence for the client side: restore bridge0 to
+192.168.2.2, bounce the Thunderbolt port if inactive, verify gateway
+reachability, open the reverse SSH tunnel
+.RB ( ssh\ \-R\ 2222:localhost:22\ gateway ).
+.TP
+.B tunnel-mini-status
+Print a one-line connection summary without taking any action.
+Equivalent to
+.B bridge-restore \-\-status.
+.SH CONFIGURATION
+Configuration is stored as JSON in
+.I ~/.config/bridge-restore/config.json.
+.PP
+Key sections:
+.TP
+.I my_role
+\(dqgateway\(dq or \(dqclient\(dq. Auto-detected from hardware UUID if absent.
+.TP
+.I gateway.ip
+Bridge0 IP owned by the gateway. Default: 192.168.2.1.
+.TP
+.I clients[0].ip
+Bridge0 IP of the primary client. Default: 192.168.2.2.
+.TP
+.I clients[0].tunnel_port
+Reverse SSH tunnel port opened on the gateway. Default: 2222.
+.TP
+.I diagnostics
+Boolean flags for L1–L7 diagnostic layers.
+.TP
+.I watchdog.enabled, watchdog.interval_seconds
+Watchdog on/off and check interval.
+.SH FILES
+.TP
+.I ~/.config/bridge-restore/config.json
+Runtime configuration.
+.TP
+.I ~/Library/Application\ Support/BridgeRestore/scripts/
+Installed scripts (written by the pkg installer).
+.TP
+.I ~/Library/LaunchAgents/local.nat-persist.plist
+Runs at login: restores ip_forwarding, bridge0 IP, pf NAT anchor.
+.TP
+.I ~/Library/LaunchAgents/local.mbp-watchdog.plist
+Persistent watchdog daemon (gateway only).
+.TP
+.I ~/Library/LaunchAgents/local.tunnel-pro.plist
+Persistent tunnel-pro restarter (client only).
+.TP
+.I ~/Library/LaunchAgents/local.bridge-ip.plist
+Keeps bridge0 at the correct IP (client only).
+.TP
+.I /etc/pf.anchors/bridge-restore
+Persistent NAT rules loaded by nat-persist and tunnel-mini.
+.TP
+.I ~/Library/Logs/BridgeRestore/
+Log directory. Files: bridge-restore-app.log, mbp-watchdog.log,
+tunnel-mini.log, tunnel-pro.log, nat-persist.log, bridge-ip.log.
+.SH EXIT STATUS
+.TP
+0
+Success.
+.TP
+1
+Fatal error (wrong machine, unreachable gateway, tunnel failure).
+.SH ENVIRONMENT
+.TP
+.B HOME
+Used to locate config, logs, and SSH keys.
+.TP
+.B PATH
+Must include /usr/local/bin for companion commands.
+.SH EXAMPLES
+.PP
+Run a full restore (auto-detects role):
+.RS
+.B bridge-restore
+.RE
+.PP
+Show current status without modifying anything:
+.RS
+.B bridge-restore --status
+.RE
+.PP
+Run full OSI diagnostics:
+.RS
+.B bridge-restore --diag
+.RE
+.PP
+Force Thunderbolt re-negotiation (gateway only):
+.RS
+.B bridge-restore --sever
+.RE
+.PP
+Open the setup wizard on first run:
+.RS
+.B bridge-restore --wizard
+.RE
+.PP
+Collect bridge-drop debugging data and analyse with local AI:
+.RS
+.B bridge-restore --bughunt
+.RE
+.SH NOTES
+.PP
+.B SSH tunnel architecture:
+The client (mini) initiates the reverse tunnel:
+.RS
+.B ssh -R 2222:localhost:22 akmacks@192.168.2.1
+.RE
+The gateway then connects back via:
+.RS
+.B ssh -p 2222 akmacks@localhost
+.RE
+This means tunnel-pro must run on the client
+.I before
+tunnel-mini is run on the gateway.
+.PP
+.B APIPA bridge instability:
+If the client's Ethernet port (BCM5722) has no driver loaded, macOS
+assigns a 169.254.x.x self-assigned IP and configd enters a DHCP
+re-probe loop that disturbs bridge0 every ~30 s.
+Fix: sudo networksetup -setnetworkserviceenabled "Ethernet" off
+.PP
+.B plistlib vs PlistBuddy:
+Always use Python plistlib (not PlistBuddy) to edit config.plist
+files, as PlistBuddy produces corrupt ASCII-encoded plists in Tahoe.
+.SH SEE ALSO
+.B ssh(1), pfctl(8), networksetup(8), launchctl(1), ifconfig(8)
+.SH BUGS
+Report issues at the project repository or via the --bughunt command.
+.SH AUTHORS
+Developed by Adam + Claude (Anthropic) / OpenClaw project, 2026.

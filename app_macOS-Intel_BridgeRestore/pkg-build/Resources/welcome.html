@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8">
+<style>
+  body { font-family: -apple-system, Helvetica Neue, sans-serif; font-size: 13px;
+         margin: 20px; color: #1d1d1f; background: #fff; }
+  h1   { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  h2   { font-size: 14px; font-weight: 600; margin: 18px 0 6px; }
+  .tag { display: inline-block; background: #0071e3; color: #fff;
+         font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+  ul   { margin: 6px 0 6px 18px; }
+  li   { margin-bottom: 3px; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 11px;
+         background: #f5f5f7; padding: 1px 5px; border-radius: 4px; }
+  .note { border-left: 3px solid #0071e3; padding: 8px 12px;
+          background: #f0f6ff; margin: 14px 0; border-radius: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+<h1>Welcome to Bridge Restore <span class="tag">v1.0.2-alpha</span></h1>
+<p>A Thunderbolt Bridge connectivity suite for <strong>Intel non-T2 Macs</strong> running macOS Sonoma, Sequoia, or Tahoe.</p>
+
+<h2>What will be installed</h2>
+<ul>
+  <li><strong>BridgeRestore.app</strong> — GUI + CLI launcher in <code>/Applications</code></li>
+  <li><strong>CLI commands</strong> in <code>/usr/local/bin</code>:
+    <code>bridge-restore</code>, <code>tunnel-mini</code>, <code>tunnel-mini-status</code>, <code>bridge-restore-gui</code></li>
+  <li><strong>Scripts</strong> in <code>~/Library/Application Support/BridgeRestore/scripts/</code></li>
+  <li><strong>LaunchAgents</strong> — watchdog, NAT persistence, tunnel automation</li>
+  <li><strong>Man page</strong> — <code>man bridge-restore</code></li>
+  <li><strong>NAT anchor</strong> — <code>/etc/pf.anchors/bridge-restore</code></li>
+</ul>
+
+<h2>Requirements</h2>
+<ul>
+  <li>Intel Mac (x86_64) — not compatible with Apple Silicon</li>
+  <li>macOS 14.0 (Sonoma) or later</li>
+  <li>Thunderbolt 2/3 cable for bridge connection</li>
+  <li>Passwordless sudo recommended (<code>/etc/sudoers.d/yourname-nopasswd</code>)</li>
+</ul>
+
+<div class="note">
+  <strong>Upgrading?</strong> The installer will detect your existing version and offer to
+  archive it before installing. Archives are saved to
+  <code>~/Library/Application Support/BridgeRestore/archives/</code>.
+</div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+#!/bin/bash
+# BridgeRestore.app launcher — Contents/MacOS/BridgeRestore
+APP_SUPPORT="$HOME/Library/Application Support/BridgeRestore"
+SCRIPTS_DIR="$APP_SUPPORT/scripts"
+FALLBACK_SCRIPTS="$(cd "$(dirname "$0")/../../.." && pwd)/usr/local/share/bridge-restore/scripts"
+
+# Find GUI script — prefer user-installed copy, fall back to system share
+if [[ -f "$SCRIPTS_DIR/bridge-restore-gui.sh" ]]; then
+  SCRIPT="$SCRIPTS_DIR/bridge-restore-gui.sh"
+elif [[ -f "$FALLBACK_SCRIPTS/bridge-restore-gui.sh" ]]; then
+  SCRIPT="$FALLBACK_SCRIPTS/bridge-restore-gui.sh"
+else
+  osascript -e 'display dialog "Bridge Restore is not fully installed.\n\nPlease run the installer (BridgeRestore.pkg) to complete setup." buttons {"OK"} with title "Bridge Restore" with icon stop'
+  exit 1
+fi
+
+exec bash "$SCRIPT" "$@"

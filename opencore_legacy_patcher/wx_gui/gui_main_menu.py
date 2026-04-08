@@ -286,6 +286,31 @@ class MainFrame(wx.Frame):
 
 
     def on_post_install_root_patch(self, event: wx.Event = None):
+        # Detect if we are patching an external volume (eg. Target Disk Mode)
+        import subprocess, pathlib
+
+        try:
+            # Get all mounted volumes excluding the boot volume
+            result = subprocess.run(["diskutil", "list"], capture_output=True, text=True)
+            boot_disk = subprocess.run(["diskutil", "info", "-plist", "/"], capture_output=True)
+            import plistlib
+            boot_info = plistlib.loads(boot_disk.stdout)
+            boot_device = boot_info.get("ParentWholeDisk", "disk0")
+
+            # Check for external physical disks with mounted macOS volumes
+            external_result = subprocess.run(
+                ["diskutil", "list", "-plist", "external"],
+                capture_output=True
+            )
+            if external_result.returncode == 0:
+                ext_list = plistlib.loads(external_result.stdout)
+                whole_disks = ext_list.get("WholeDisks", [])
+                if whole_disks:
+                    logging.info(f"External disks found: {whole_disks}")
+                    self.constants.is_patching_external_volume = True
+        except Exception as e:
+            logging.info(f"External volume detection failed: {e}")
+
         gui_sys_patch_display.SysPatchDisplayFrame(
             parent=self,
             title=self.title,

@@ -1,41 +1,43 @@
-.DS_Store
-OCLP-GUI.command
-/payloads/Apple
-/payloads/*.zip
-/payloads/BuildManifest.plist
-/payloads/*.sucatalog
-/payloads/*.pkg
-/payloads/__MACOSX
-/App
-/Build-Folder
-/build
-/dist
-/.vscode
+# === LARGE BINARIES (too big for GitHub) ===
+Universal-Binaries.dmg
+payloads/
+payloads 2/
+*.dmg
+Build-Folder/
+
+# === FORENSIC BINARIES (manifest kept, binaries local-only) ===
+docs/forensic/MetallibSupportPkg/15.4-24E248/
+
+# === DUPLICATE / WORKING COPIES ===
+opencore_legacy_patcher 2/
+
+# === PYTHON ===
 __pycache__/
-*.kext
-*.py[cod]
-*$py.class
-/docs/.vuepress/dist
-/docs/.vuepress/.config.js.swp
-/docs/yarn-error.log
-/docs/node_modules/
-/payloads/List.txt
-/payloads/Installer.sh
-/payloads/Info.plist
-/payloads/seed.plist
-/payloads/AutoPkg-Assets.pkg
-/payloads/AutoPkg-Assets.pkg.zip
-/payloads/Universal-Binaries
-/payloads/OpenCore-Legacy-Patcher
-/payloads/InstallAssistant.pkg.integrityDataV1
-/payloads.dmg
-/Universal-Binaries.dmg
-/payloads/OpenCore-Legacy-Patcher-*.plist
-/payloads/KDK.dmg
-*.log
-/Universal-Binaries.dmg
-/payloads/KDKInfo.plist
-/payloads/update.sh
-/payloads/OpenCore-Patcher.app
-/.x86_64_venv
-*afdesign~lock~
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+wheels/
+.Python
+venv/
+.venv/
+
+# === BUILD ARTIFACTS ===
+dist/
+build/
+*.spec
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# === Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
