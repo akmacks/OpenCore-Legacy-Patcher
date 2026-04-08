@@ -277,3 +277,73 @@ Model: Macmini5,3
 | `opencore_legacy_patcher/wx_gui/gui_main_menu.py` | External volume detection in Post-Install |
 | `opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/modern_audio.py` | Tahoe audio source folder fallback |
 | `opencore_legacy_patcher/support/subprocess_wrapper.py` | sudo bypass for dev (Privileged Helper workaround) |
+
+
+---
+
+## Session 13 — 2026-04-08 (Cowork / Claude)
+
+### Focus
+KDK forensic analysis, correct identification of the 25-prefix downloaded package,
+Bridge-Restore contamination removal, repo cleanup, version tagging.
+
+### What Happened This Session
+
+**Resolved: "25-prefix package" mystery**
+After correcting an earlier error (Session 12 incorrectly identified MetallibSupportPkg
+15.4-24E248 as the 25-prefix package), a thorough search located the actual package:
+
+- `KDK_26.4_25E246.pkg` — 1.1 GB Kernel Debug Kit for Tahoe 26.4
+- Located at `/Library/Developer/KDKs/`
+- Downloaded at 11:36 AM by OCLP `gui_cache_os_update.py`
+- SHA256: `8c6879cb7e4ccf96039cf08bcdbfc98c5520823dd928cc91f16d480483fbfe9f`
+- No standard Dortania log entry — `gui_cache_os_update.py` runs as a
+  LaunchAgent GUI dialog, not the standard CLI auto-patcher code path
+
+**KDK deep-dive completed**
+Full forensic analysis of `KDK_26.4_25E246.pkg` — see `docs/KDK-FORENSIC.md`:
+- Apple-authored, Dortania-mirrored on GitHub (`KdkSupportPkg` project)
+- 8,000 files: release + development + KASAN kernels, full Tahoe kext set, dSYMs
+- XNU version: `25.4.0 / xnu-12377.101.15~1/RELEASE_X86_64`
+- KdkSupportPkg manifest is fully up-to-date: 163 Tahoe (25-prefix) entries ✅
+- MetallibSupportPkg manifest has ZERO Tahoe entries — fallback to Sequoia 15.4 ⚠️
+
+**Project plan updated** (`docs/PROJECT-PLAN.md`, commit `3a8ed68`):
+- Corrected downloaded packages section (two packages: KDK + MetallibSupportPkg)
+- Added MetallibSupportPkg Tahoe manifest gap analysis
+- Risk register updated with two new rows
+
+**Bridge-Restore contamination removed**
+`app_macOS-Intel_BridgeRestore/` was fully committed inside the OCLP repo —
+a mistake from earlier session. Removed from git tracking (`git rm -r --cached`),
+added to `.gitignore`. Directory kept on disk (separate project).
+
+**Version tagged:** `3.0.0-alpha (26A02)` on branch `macos-next`
+
+### Bugs Confirmed (Still Pending Fix)
+
+| # | File | Bug | Status |
+|---|---|---|---|
+| 1 | `constants.py` | `legacy_accel_support` missing `os_data.tahoe` | **Confirmed, fix pending** |
+| 2 | `legacy_wireless.py` | `_extended_patch()` requests `12.7.2-25` payloads (don't exist) | **Confirmed, fix pending** |
+
+### Current OCLP State on Macmini5,3
+
+- macOS Tahoe 26.4 (25E246) update **staged / installing** → reboot pending
+- OCLP root patches **not yet applied** to 26.4 boot volume
+- KDK_26.4_25E246.pkg **downloaded and saved** at `/Library/Developer/KDKs/`
+- MetallibSupportPkg 15.4-24E248 (Sequoia fallback) **downloaded** at
+  `/Library/Application Support/Dortania/MetallibSupportPkg/`
+- EFI: BCM5722 Find/Replace byte patch **in place** (unverified on 26.4)
+- Snapshot seal: **broken** from Session 1 GPU patch → auto-patcher will skip
+
+### Next Steps (for next session / OpenClaw)
+
+Priority order (hardware verification sequence post-26.4 reboot):
+
+1. **Ethernet first** — `kextstat | grep 5701`, `ifconfig en0`, ping 8.8.8.8
+   - If broken: re-derive BCM5722 Find/Replace bytes from 26.4 kernel in KDK
+2. **Apply Bug 1 fix** — add `os_data.tahoe` to `legacy_accel_support` in `constants.py`
+3. **Apply Bug 2 fix** — cap Wi-Fi XNU version in `legacy_wireless.py`
+4. **Run root patches manually** — `sudo python3 OpenCore-Patcher.app/Contents/MacOS/...`
+5. **Reboot and verify** — Wi-Fi, BT, Audio, Desktop colour in sequence

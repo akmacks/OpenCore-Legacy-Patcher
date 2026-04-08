@@ -1,9 +1,0 @@
-.DS_Store
-config/
-logs-sample/
-*.log
-*.state
-__pycache__/
-.env
-pkg-build/work/
-pkg-build/payload/

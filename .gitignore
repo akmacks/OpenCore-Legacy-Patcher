@@ -41,3 +41,6 @@ Icon
 .idea/
 *.swp
 *.swo
+
+# === BRIDGE-RESTORE APP (separate project — tracked in its own repo) ===
+app_macOS-Intel_BridgeRestore/

@@ -1,5 +1,33 @@
 # OpenCore Legacy Patcher changelog
 
+## 3.0.0-alpha (26A02) — 2026-04-08 [Macmini5,3 Tahoe Development Branch]
+
+> **Development fork** by @akmacks. Branch: `macos-next`.
+> Target hardware: Macmini5,3 (Sandy Bridge, Intel HD 3000, BCM4331/BCM5722/BCM2046/ALC892).
+> Target OS: macOS Tahoe 26.x (XNU 25). **Not for general use.**
+
+### Code Changes
+- Identified Bug 1: `legacy_accel_support` list in `constants.py` missing `os_data.tahoe` — blocks all Sandy Bridge GPU patches on XNU 25 *(fix pending)*
+- Identified Bug 2: `legacy_wireless.py` `_extended_patch()` constructs key `"12.7.2-25"` — no such payload exists in `Universal-Binaries.dmg` *(fix pending)*
+- BCM5722 Ethernet: Find/Replace binary patch added to EFI `config.plist` *(unverified on 26.4)*
+- `detect.py`: `_max_os` already set to `os_data.tahoe.value` ✅ (no change needed)
+
+### Infrastructure / Forensic
+- KDK `KDK_26.4_25E246.pkg` (1.1 GB) pre-downloaded by `gui_cache_os_update.py` — full forensic analysis at `docs/KDK-FORENSIC.md`
+- MetallibSupportPkg: Dortania manifest has **zero** Tahoe (25-prefix) entries — will fall back to Sequoia 15.4 metallibs
+- KdkSupportPkg: Dortania manifest fully up-to-date (163 Tahoe entries, latest `25F5042g`)
+- `app_macOS-Intel_BridgeRestore/` removed from git tracking (separate project)
+
+### Documentation
+- `docs/PROJECT-PLAN.md` — master plan with Ethernet priority, 8-phase breakdown, risk register
+- `docs/TAHOE-DEV-LOG.md` — Sessions 1–13 complete dev log
+- `docs/KDK-FORENSIC.md` — Apple KDK deep-dive (new)
+- `docs/forensic/MetallibSupportPkg/MANIFEST.md` — SHA256 manifest of 151 Sequoia metallibs
+- `docs/SESSION-HANDOFF.md` — updated for handover to OpenClaw
+
+---
+
+
 ## 3.0.0
 - Restore support for FileVault 2 on macOS 26
 - Add USB mappings for macOS 26
