@@ -114,22 +114,26 @@ class LegacyWireless(BaseHardware):
         if self._xnu_major < os_data.ventura:
             return {}
 
+        # Cap payload version at 24 (Sequoia) for Tahoe and later
+        # Universal-Binaries.dmg doesn't have 12.7.2-25 (Tahoe) payloads yet
+        payload_major = self._xnu_major if self._xnu_major < os_data.tahoe else os_data.sequoia
+
         return {
             "Legacy Wireless Extended": {
                 PatchType.OVERWRITE_SYSTEM_VOLUME: {
                     "/usr/libexec": {
-                        "wps":      "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{self._xnu_major}",
-                        "wifip2pd": "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{self._xnu_major}",
+                        "wps":      "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{payload_major}",
+                        "wifip2pd": "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{payload_major}",
                     },
                 },
                 PatchType.MERGE_SYSTEM_VOLUME: {
                     "/System/Library/Frameworks": {
-                        "CoreWLAN.framework": "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{self._xnu_major}",
+                        "CoreWLAN.framework": "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{payload_major}",
                     },
                     "/System/Library/PrivateFrameworks": {
-                        "CoreWiFi.framework":       "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{self._xnu_major}",
-                        "IO80211.framework":        "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{self._xnu_major}",
-                        "WiFiPeerToPeer.framework": "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{self._xnu_major}",
+                        "CoreWiFi.framework":       "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{payload_major}",
+                        "IO80211.framework":        "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{payload_major}",
+                        "WiFiPeerToPeer.framework": "12.7.2" if self._xnu_major < os_data.sequoia else f"12.7.2-{payload_major}",
                     },
                 }
             },
