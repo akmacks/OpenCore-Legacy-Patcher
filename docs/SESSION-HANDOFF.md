@@ -1,181 +1,124 @@
-# OCLP 3.0.0-alpha Dev — Session Handoff
-## For: OpenClaw (or next Claude session)
-## Generated: 2026-04-10 | Session 14 close (rollback session)
-## Version: 3.0.0-alpha (26A02) | Branch: macos-next
-## Repo: https://github.com/akmacks/OpenCore-Legacy-Patcher
+# OCLP 3.0.0-alpha — Session Handoff
+## For: OpenClaw / Claude Code / Codex / next Claude session
+## Updated: 2026-04-10 13:30 AEST | Session 16 close
+## Branch: macos-next | Last commit: see git log
+## Full coordination: docs/AGENT-COORDINATION.md
+## Status feed: docs/STATUS-FEED.md
 
 ---
 
-## QUICK STATUS
+## QUICK START FOR NEW AGENT
+
+```bash
+# SSH to mini (from MBP, after tunnel-pro on mini)
+ssh -p 2222 akmacks@localhost
+
+# Or direct via TB bridge
+ssh akmacks@192.168.2.2
+
+# Check system state
+uptime && ifconfig -l && kextstat | grep -iE "OHCI|UHCI|BCM|airport|bluetooth"
+
+# OCLP repo on mini
+cd ~/OpenCore-Legacy-Patcher && git log --oneline -5
+```
+
+---
+
+## CURRENT STATE SNAPSHOT
 
 | Item | State |
-|---|---|
-| macOS version | Tahoe **26.4 (25E246)** |
-| OCLP root patches | **ROLLED BACK** — reverted to pre-patch snapshot (XID 2239951) |
-| Ethernet (BCM5722) | **WORKING** — confirmed in Recovery: en0, 192.168.0.111, 1 Gbit/s |
-| Wi-Fi (BCM4331) | **UNKNOWN** — root patches not applied |
-| Audio (ALC892) | **BROKEN** — root patches not applied |
-| Bluetooth (BCM2046) | **BROKEN** — root patches not applied |
-| GPU / Desktop colour | **BROKEN** — root patches rolled back |
-| Bug 1 fix | ✅ Committed `7d28f4d` — constants.py legacy_accel_support += tahoe |
-| Bug 2 fix | ✅ Committed `7d28f4d` — legacy_wireless.py XNU cap at sequoia |
-| Git repo | `macos-next` branch, commit `7d28f4d`, pushed to GitHub |
-| Mini boot state | Rebooting after TDM rollback — result TBD |
+|------|-------|
+| macOS | Tahoe 26.4 (25E246) — booting, stable |
+| OCLP root patches | USB 1.1 + Sandy Bridge GPU + GVA applied |
+| USB HID | ✅ Working (UHCI kext loaded) |
+| GPU / Desktop | ✅ Stable, colour desktop, no freeze |
+| Ethernet (en0) | ❌ CatalinaBCM5701 not loading — P1 priority |
+| Wi-Fi (en1) | 🟡 AirportBrcmFixup loaded, no interface |
+| Bluetooth | 🟡 Kexts loaded, pairing untested |
+| Audio | ❓ Unverified |
+| SSH | ✅ Via tunnel port 2222 |
+| Internet | ✅ Via TB bridge, 26ms RTT |
+| Tailscale | ✅ Connected |
+| Git | macos-next, commits 7d28f4d → 74a190b4c → pending |
 
 ---
 
-## WHAT HAPPENED (Session 14 — 2026-04-10)
+## TOP PRIORITY: Ethernet Fix
 
-Root patches applied by OpenClaw on 2026-04-09 caused the mini to freeze after
-~5 minutes. Patches applied: High Sierra GVA, Intel Sandy Bridge GPU, Legacy USB 1.1.
+CatalinaBCM5701Ethernet.kext is in EFI, matches device pci14e4,16b4,
+but is completely absent from kextstat. AMFI flag added but insufficient.
 
-**Rollback method used:** Target Disk Mode from MBP
-- `sudo mount -uw /Volumes/Server\ HD`
-- `sudo bless --folder /Volumes/Server\ HD/System/Library/CoreServices --bootefi --last-sealed-snapshot`
-- Reverted to snapshot XID 2239951 (sealed os.update snapshot, pre-patch)
-
-Full rollback log: `docs/APP-DEV-LOGS/2026-04-10-ROLLBACK-SESSION.md`
-
-**Note:** `diskutil apfs revertSnapshot` does NOT exist in Tahoe — use bless method above.
-
----
-
-## MACHINE REFERENCE
-
-**Mac mini (development target)**
-- Model:    Macmini5,3 (Late 2011, Quad-Core i7 Sandy Bridge, 16 GB)
-- Hostname: Mac-mini-Server-i7.local
-- User:     akmacks / sudo NOPASSWD
-- OS:       macOS Tahoe 26.4 (25E246)
-- OCLP:     ~/OpenCore-Legacy-Patcher/ (branch macos-next)
-- Ethernet: en0 = BCM5722 (57765-B0), IP 192.168.0.111, confirmed working
-
-**MacBook Pro (bridge/controller)**
-- Model:    MacBook Pro i9 (non-T2)
-- Hostname: MacBook-Pro-i9
-- SSH to mini (if Ethernet up): `ssh akmacks@192.168.0.111`
-- OCLP:     ~/Documents/Github/OpenCore-Legacy-Patcher/ (same branch)
-
----
-
-## FREEZE INVESTIGATION (Priority Before Re-Patching)
-
-The post-patch freeze is the critical blocker. Approach:
-
-1. Boot mini post-rollback — confirm stable
-2. Check panic logs from last session:
-   ```bash
-   log show --last 24h | grep -i "panic\|fault\|crash" | head -30
-   ls /Library/Logs/DiagnosticReports/
-   ```
-3. Re-apply patches ONE AT A TIME:
-   - Step A: USB 1.1 only → reboot → test 30 min stability
-   - Step B: Add Sandy Bridge GPU → reboot → test 30 min stability
-   - Step C: Add High Sierra GVA → reboot → test 30 min stability
-4. Whichever step triggers freeze = root cause patchset
-
-Likely suspect: **Sandy Bridge GPU stack** interacting with Tahoe's WindowServer.
-
----
-
-## TWO CODE BUGS (FIXED in commit 7d28f4d — do NOT redo)
-
-### Bug 1 — GPU patches disabled on Tahoe ✅ FIXED
-**File:** `opencore_legacy_patcher/constants.py`  
-`os_data.tahoe` added to `self.legacy_accel_support`
-
-### Bug 2 — Wi-Fi payload key mismatch ✅ FIXED
-**File:** `opencore_legacy_patcher/sys_patch/patchsets/hardware/networking/legacy_wireless.py`  
-XNU version capped at sequoia value so payload key = `12.7.2-24` not `12.7.2-25`
-
----
-
-## PRIORITY TASK SEQUENCE (next session)
-
-```
-Step 1  Boot mini, confirm no freeze          (passive — wait 10 min)
-Step 2  Confirm Ethernet                       ifconfig en0; ping 8.8.8.8
-Step 3  SSH in from MBP                        ssh akmacks@192.168.0.111
-Step 4  Check panic logs                       log show --last 24h | grep -i panic
-Step 5  Apply USB 1.1 patch only               run_patch_complete.py (USB 1.1 subset)
-Step 6  Reboot, stability test 30 min
-Step 7  If stable, add Sandy Bridge GPU patch
-Step 8  Reboot, stability test 30 min
-Step 9  If stable, add High Sierra GVA patch
-Step 10 Reboot, full hardware verify (WiFi, BT, Audio, GPU, Ethernet)
-Step 11 Commit results, update logs
-```
-
----
-
-## ETHERNET STATUS (CONFIRMED WORKING)
-
-BCM5722 Ethernet confirmed functional via Network Utility in Internet Recovery:
-- en0, Broadcom 57765-B0, IP 192.168.0.111, 1 Gbit/s, Active
-- Hardware Address: 3c:07:54:10:9e:a4
-- EFI kext (CatalinaBCM5701Ethernet) appears to be working
-
-**SSH directly via Ethernet once mini boots:**
+**Diagnostic to run first:**
 ```bash
-ssh akmacks@192.168.0.111
+log show --last boot 2>/dev/null | grep -iE "BCM5701|CatalinaBCM|kext.*deny|amfi.*deny" | head -20
 ```
-TB bridge should no longer be required as primary connectivity.
 
----
-
-## SNAPSHOT / ROLLBACK REFERENCE (Tahoe method)
-
+**Then check OC config ForceKextsToLoad:**
 ```bash
-# List snapshots (from TDM on MBP, or natively on mini)
-diskutil apfs listSnapshots disk10s4     # TDM
-diskutil apfs listSnapshots /            # native
-
-# Rollback (Tahoe method — diskutil revertSnapshot does NOT exist)
-sudo mount -uw /Volumes/Server\ HD       # TDM only — not needed natively
-sudo bless --folder /Volumes/Server\ HD/System/Library/CoreServices \
-  --bootefi --last-sealed-snapshot
-
-# Eject after TDM rollback
-diskutil eject disk8
+grep -A3 "ForceKextsToLoad" /Volumes/EFI/EFI/OC/config.plist
 ```
 
-Pre-patch sealed snapshot: XID 2239951, UUID `97CE4BAC-80C2-4633-BB3D-DD0F3A6C1C29`
+See AGENT-COORDINATION.md for full P1 investigation steps.
 
 ---
 
-## REPO STATE
+## KEY FILES ON MINI
 
-```
-Remote:   https://github.com/akmacks/OpenCore-Legacy-Patcher
-Branch:   macos-next
-Tag:      3.0.0-alpha (26A02)
-Last commit: 7d28f4d — Bug 1 + Bug 2 fixes (OpenClaw, 2026-04-09)
+| File | Purpose |
+|------|---------|
+| `~/run_patch_complete.py` | Full wx-stub patch runner |
+| `~/run_usb11_patch.py` | USB 1.1 only (copy with filter) |
+| `~/OpenCore-Legacy-Patcher/` | OCLP dev repo |
+| `/Volumes/EFI/EFI/OC/config.plist` | OC config (EFI must be mounted) |
+| `/Library/Developer/KDKs/KDK_26.4_25E246.kdk` | Kernel debug kit |
 
-Key files:
-  docs/SESSION-HANDOFF.md                    — this file
-  docs/APP-DEV-LOGS/2026-04-09-OC-MINI-SESSION.md        — OpenClaw patch session
-  docs/APP-DEV-LOGS/2026-04-09-OC-MINI-SESSION-UPDATE.md — patch success log
-  docs/APP-DEV-LOGS/2026-04-09-ROLLBACK-PLAN.md          — rollback reference
-  docs/APP-DEV-LOGS/2026-04-09-TEST-PLAN.md              — test plan
-  docs/APP-DEV-LOGS/2026-04-10-ROLLBACK-SESSION.md       — THIS SESSION log
-  docs/TAHOE-DEV-LOG.md                      — sessions 1-13 full history
-```
+Mount EFI: `sudo diskutil mount disk0s1`
 
 ---
 
-## SESSION HISTORY SUMMARY
+## KEY FILES IN REPO (MBP)
 
-| Session | Date | Key Work |
-|---|---|---|
-| 1-3 | 2026-03 | Initial Tahoe boot, OC EFI, GPU patch attempt |
-| 4-6 | 2026-03 | BCM5722 analysis, Bug 1 identified |
-| 7-9 | 2026-03 | Wi-Fi Bug 2, audio fallback, TB bridge |
-| 10-12 | 2026-03/04 | Repo init, GitHub push, forensic manifest |
-| 13 | 2026-04-08 | KDK forensic, version tag, handoff |
-| 14 (OC) | 2026-04-09 | Bug 1+2 fixed, root patches applied (commit 7d28f4d) |
-| 15 | 2026-04-10 | **ROLLBACK** — freeze recovery via TDM + bless |
+| File | Purpose |
+|------|---------|
+| `docs/AGENT-COORDINATION.md` | Work queue + handoff protocol |
+| `docs/STATUS-FEED.md` | Append-only status log (RSS feed) |
+| `docs/SESSION-HANDOFF.md` | This file |
+| `docs/APP-DEV-LOGS/` | Per-session detailed logs |
+| `docs/TAHOE-DEV-LOG.md` | Full session history 1-13 |
 
 ---
 
-*Generated: 2026-04-10 Session 15 close — Claude (Cowork mode)*  
-*Verify system state with live diagnostics before assuming anything.*
+## CODE BUGS STATUS
+
+Both fixed in commit `7d28f4d` — do not re-apply:
+- Bug 1: `constants.py` — `legacy_accel_support` += tahoe ✅
+- Bug 2: `legacy_wireless.py` — XNU version cap at sequoia ✅
+
+---
+
+## BOOT-ARGS (current in EFI)
+
+```
+keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic amfi_get_out_of_my_way=0x7ff
+```
+
+Backup at: `/Volumes/EFI/EFI/OC/config.plist.bak`
+
+---
+
+## SESSION HISTORY
+
+| Session | Date | Agent | Key Work |
+|---------|------|-------|----------|
+| 1-3 | 2026-03 | Claude | OC EFI, GPU patch, USB HID fix |
+| 4-6 | 2026-03 | Claude | BCM5722 analysis, Bug 1 |
+| 7-9 | 2026-03 | Claude | Bug 2, audio fallback, TB bridge |
+| 10-12 | 2026-03/04 | Claude | Repo init, GitHub, forensic manifest |
+| 13 | 2026-04-08 | Claude | KDK forensic, version tag |
+| 14 (OC) | 2026-04-09 | OpenClaw | Bug 1+2 fix, root patches applied |
+| 15 | 2026-04-10 | Claude | Rollback (TDM + bless), SSH fix |
+| 16 | 2026-04-10 | Claude | USB 1.1 patch, AMFI fix, stable desktop |
+
+---
+*Verify all state with live diagnostics — never assume from this doc alone.*
