@@ -7,6 +7,47 @@
 ---
 <!-- FEED START — newest entries at top, oldest at bottom -->
 
+## [2026-04-12 18:00 AEST] — Session 17 Final Close
+**Agent:** Claude (Cowork)  
+**Status:** 🟡 MINI UP — USB PATCHED (MANUAL) — OCLP PIPELINE BLOCKED  
+
+Session 17 fully closed. All recovery objectives met. Mini is bootable, SSH live,
+USB HID functional via manual kext injection. Tunnel both directions confirmed.
+
+**GPU patch confirmed fatal — standing rule established:**  
+Sandy Bridge Intel HD 3000 OCLP patches crash Macmini5,3 on macOS Tahoe. Confirmed
+twice this session. No GPU patches to be applied until separately resolved. This is
+now a standing rule in AGENT-COORDINATION.md and the new AI coding coordination doc.
+
+**Core blocking issue documented:**  
+OCLP `PatchSysVolume` applies patchsets by model identifier internally. The
+`hardware_details` filter dict does NOT reliably exclude GPU patches for Macmini5,3 —
+USB and GPU patches are bundled together. Fix requires model-exclusion guards in
+`sys_patch/patchsets/hardware/graphics/intel_sandy_bridge.py` and the AMD Terascale
+patchset. Detailed task breakdown in OCLP-AI-Agentic-Coding-Coordination.md.
+
+**APFS snapshot state:**  
+- Sealed baseline: com.apple.os.update-... (XID 2239951) — recovery fallback  
+- Active bless snapshot: com.apple.bless.DF02ADE0-... (XID 2415851) — has USB patches  
+- USB kexts manually injected (fragile — not via OCLP pipeline)  
+
+**1Password CLI neutralised:**  
+IdentityAgent line removed from ~/.ssh/config on mini. SSH keys now load from
+standard paths without 1Password prompts.
+
+**Docs written this session:**  
+- 2026-04-12_handover.md — full session handover for OpenClaw / next agent  
+- OCLP-AI-Agentic-Coding-Coordination.md — incremental test build pipeline + rules  
+- 2026-04-12-SESSION-17-CLOSE.md in APP-DEV-LOGS/  
+
+**Next session P1:**  
+Fix GPU exclusion in OCLP patchsets (Tasks A/B/C in coordination doc), then run
+OCLP-managed USB-only patch via TDM. Tag: v3.0.0-alpha-build1-usb.  
+After that: Ethernet (BCM5722D), Wi-Fi, Audio, Bluetooth — GPU last.
+
+---
+
+
 ## [2026-04-12 16:30 AEST] — Session 17 Close
 **Agent:** Claude (Cowork)  
 **Status:** 🟡 MINI UP — USB KEYBOARD BLOCKED
