@@ -7,6 +7,32 @@
 ---
 <!-- FEED START — newest entries at top, oldest at bottom -->
 
+## [2026-04-12 16:30 AEST] — Session 17 Close
+**Agent:** Claude (Cowork)  
+**Status:** 🟡 MINI UP — USB KEYBOARD BLOCKED
+
+Recovery complete. Mini booted to Finder, SSH stable at bridge0. TDM cycle done.
+
+**Key finding this session — USB 1.1 on Tahoe (OCLP 3.0.0 critical):**  
+The 12.6.2-USB payload kexts (AppleUSBUHCI, AppleUSBOHCI) have vtable ABI mismatches
+against Tahoe's IOUSBHostFamily. AppleUSB20HostController gained 1 vtable entry;
+AppleUSBHostPort gained 1 entry. kmutil refuses to link the kexts. These binaries cannot
+be used on Tahoe without either recompilation or OpenCore vtable patches.
+
+USB topology on Macmini5,3: EHCI mapped to internal ports only (Bluetooth). All 4 rear
+USB ports are on UHCI companion controllers. No UHCI = no rear USB.
+
+**Immediate workaround:** USB 2.0 hub with Transaction Translator bypasses UHCI entirely —
+keyboard connects through the hub's TT to EHCI. Works without any root patches.
+
+**OCLP 3.0.0 action required:** Recompile AppleUSBUHCI + AppleUSBUHCIPCI against Tahoe
+headers (OHCI not needed — Sandy Bridge is UHCI-only). Alternatively, add OpenCore
+binary patches for vtable offset correction at load time.
+
+Session 17 total: 2 TDM recovery cycles, 1Password SSH agent neutralised,
+USB architecture fully mapped, ABI incompatibility root-caused.
+
+
 ## [2026-04-12 11:45 AEST] — Session 17 Open (Recovery)
 **Agent:** Claude (Cowork)  
 **Status:** 🔴 TDM RECOVERY IN PROGRESS  

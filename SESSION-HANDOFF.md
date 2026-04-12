@@ -1,19 +1,23 @@
 # OCLP 3.0.0 Dev — Session Handoff
 ## For: OpenClaw (local Ollama on MBP) or next Claude instance
-## Generated: 2026-04-12 | Session 17 open (Claude Cowork — recovery)
+## Generated: 2026-04-12 | Session 17 closed
 ## Project: OpenCore Legacy Patcher
 
 ---
 
 ## ⚠️ CURRENT SITUATION — READ THIS FIRST
 
-**Mac mini is DOWN.** It failed after a Friday night (2026-04-11) patch attempt.
-It is in Target Disk Mode but the TDM disk is NOT yet visible in diskutil on the MBP.
+**Mac mini is UP.** Booted to Finder. SSH reachable at `192.168.2.2`.
+Tunnel-pro may need restarting: `ssh akmacks@192.168.2.2 'nohup tunnel-pro &>/dev/null &'`
 
-**First physical action required:** Reseat the Thunderbolt cable at the mini end.
-Wait 10 seconds, then run `diskutil list` — look for a new external disk (~500GB–1TB).
+**USB keyboard is non-functional.** All 4 rear USB ports are dead without UHCI kext support.
+**Workaround: plug keyboard into a USB 2.0 hub first**, then plug hub into the mini.
+Any hub with a Transaction Translator (virtually all USB 2.0 hubs) bridges the keyboard
+through EHCI without needing UHCI drivers. No kexts required.
 
-Do NOT attempt any commands until the TDM disk is visible.
+**Do NOT attempt OCLP root patches until Tahoe-compatible UHCI kext binaries exist.**
+The 12.6.2-USB payload kexts have vtable ABI mismatches against Tahoe's IOUSBHostFamily.
+See USB ARCHITECTURE section below for full details.
 
 ---
 
@@ -106,22 +110,49 @@ REMOTE
 
 ---
 
-## LAST CONFIRMED GOOD STATE (Session 16 — 2026-04-10)
+## CURRENT STATE (Session 17 end — 2026-04-12)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| macOS Tahoe 26.4 (25E246) | ✅ | Stable 36+ min |
-| OpenCore EFI | ✅ | disk0s1 on mini |
-| USB 1.1 UHCI/OHCI | ✅ | AppleUSBUHCI + AppleUSBOHCI loaded |
-| Sandy Bridge GPU (HD3000) | ✅ | Stable, no freeze |
-| High Sierra GVA | ✅ | Loaded |
-| Internet (TB bridge NAT) | ✅ | 26ms RTT to 8.8.8.8 |
-| Tailscale | ✅ | IP 100.86.233.5 |
-| SSH (reverse tunnel) | ✅ | Port 2222 via tunnel-pro |
+| macOS Tahoe 26.4 (25E246) | ✅ | Booted to Finder, stable |
+| OpenCore EFI | ✅ | disk0s1 (disk0 = internal SSD) |
+| Boot snapshot | ✅ | XID 2415851 (bless snapshot, not sealed) |
+| USB keyboard (wired) | ❌ | UHCI kexts ABI-incompatible with Tahoe — use USB hub workaround |
+| USB 2.0 via hub | ✅ | Works if keyboard connected via USB 2.0 hub with TT |
+| Sandy Bridge GPU (HD3000) | ❌ | NOT patched — GPU patches cause system crashes on this hardware |
+| High Sierra GVA | ❌ | NOT patched — blocked with GPU |
+| OCLP root patches | ❌ | Not applied — see USB section below |
+| Internet (TB bridge NAT) | ✅ | SSH reachable at 192.168.2.2 |
+| Tailscale | 🔴 | Not authenticated this session |
+| SSH (direct bridge) | ✅ | akmacks@192.168.2.2 |
+| Reverse tunnel | 🟡 | May need restart: `nohup tunnel-pro &>/dev/null &` |
 | Ethernet BCM57765 | ❌ | CatalinaBCM5701 not loading — device ID mismatch |
-| Wi-Fi BCM4331 | 🟡 | AirportBrcmFixup loaded, no en1 |
+| Wi-Fi BCM4331 | 🟡 | AirportBrcmFixup loaded, no en1 yet |
 | Bluetooth | 🟡 | BlueToolFixup loaded, pairing untested |
-| Audio ALC892 | ❓ | modern_audio patch skipped |
+| Audio ALC892 | ❓ | Not patched |
+
+## USB ARCHITECTURE ON Macmini5,3 (CRITICAL for OCLP 3.0.0)
+
+**Topology confirmed in Session 17:**
+- EHC1 + EHC2 (EHCI, USB 2.0): mapped by USB-Map.kext to internal ports ONLY (Bluetooth, UsbConnector=255)
+- All 4 rear USB panel ports: UHCI companion controllers (Intel 6 Series, device IDs: 0x1c28–0x1c2f)
+- Without UHCI drivers, rear USB is completely dead — ioreg IOUSB plane shows NO child devices
+
+**Why 12.6.2-USB payload kexts fail on Tahoe (vtable ABI mismatch):**
+```
+AppleUSBOHCI:   superclass AppleUSBHostPort has 333 vtable entries; kext expects 332
+AppleUSBUHCI:   superclass AppleUSB20HostController has 376 entries; kext expects 375
+```
+These binaries were compiled against macOS 12.6 (Monterey) IOUSBHostFamily.
+Tahoe's IOUSBHostFamily has an updated ABI — one vtable entry added to each superclass.
+
+**What OCLP 3.0.0 must do for USB 1.1 support on Sandy Bridge:**
+1. Recompile AppleUSBUHCI + AppleUSBUHCIPCI against Tahoe's IOUSBHostFamily headers
+   (OHCI is not needed — Sandy Bridge is UHCI only)
+2. OR: Add OpenCore kernel patches to fix vtable offsets at load time (as older OCLP does for older compat)
+
+**Immediate workaround (no kexts needed):**
+USB hub with Transaction Translator → keyboard works through EHCI without UHCI.
 
 ---
 
@@ -226,7 +257,7 @@ Session 13: KDK forensic, v3.0.0-alpha (26A02), coordination docs
 Session 14–15 (Apr 9): Root patch attempt → freeze → rollback planned  
 Session 15 (Apr 10): TDM rollback to XID 2239951  
 Session 16 (Apr 10): USB 1.1 re-patch, stable desktop 36+ min  
-Session 17 (Apr 12): Recovery — mini froze again after Apr 11 attempt  
+Session 17 (Apr 12): TDM recovery, USB architecture fully documented, ABI mismatch root-caused  
 
 Claude session links:
 Session 1: https://claude.ai/chat/aee6f07c-e9b4-47ad-aca4-ffd76a19df4f
@@ -245,5 +276,5 @@ Session 2: https://claude.ai/chat/3c791c6b-be12-4f24-850f-270b44db9fb7
 7. Git commit + push before ending session
 
 ---
-*Generated: 2026-04-12 ~11:45 AEST | Claude (Cowork session 17)*
+*Generated: 2026-04-12 ~16:30 AEST | Claude (Cowork session 17 — closed)*
 *Verify all state with live diagnostics — do not assume memory is current*

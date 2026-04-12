@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCLP Project Resource Map — Mac mini (Macmini5,3) · 2026-04-09</title>
+<style>
+  /* ── 5 mm feint light-blue grid background ── */
+  :root {
+    --grid: 19px;           /* ~5 mm at 96 dpi */
+    --grid-col: #b8d9f5;    /* feint light blue */
+    --grid-bg:  #f9fcff;
+
+    /* Collection palette */
+    --col-github:   #1a7f4b;
+    --col-github-bg:#edfaf3;
+    --col-primary:  #1a5fa8;
+    --col-primary-bg:#eef4fd;
+    --col-orphan:   #b45309;
+    --col-orphan-bg:#fff8ec;
+    --col-tools:    #6d28d9;
+    --col-tools-bg: #f5f0ff;
+    --col-system:   #374151;
+    --col-system-bg:#f3f4f6;
+    --col-logs:     #0f766e;
+    --col-logs-bg:  #f0fdfb;
+    --col-warn:     #dc2626;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 11.5px;
+    line-height: 1.45;
+    background-color: var(--grid-bg);
+    background-image:
+      linear-gradient(to right,  var(--grid-col) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-col) 1px, transparent 1px);
+    background-size: var(--grid) var(--grid);
+    padding: 28px 28px 48px 28px;
+    min-width: 1060px;
+  }
+
+  h1.page-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+    letter-spacing: 0.01em;
+  }
+  .page-subtitle {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 22px;
+  }
+
+  /* ── Generic box ── */
+  .box {
+    border: 1.5px solid currentColor;
+    border-radius: 7px;
+    padding: 10px 12px 10px 12px;
+    position: relative;
+  }
+  .box-label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-bottom: 8px;
+    background: currentColor;
+  }
+  .box-label span { filter: brightness(10); }   /* white text on colored bg */
+
+  .box-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .box-sub {
+    font-size: 10.5px;
+    color: #475569;
+    margin-bottom: 2px;
+  }
+  .file-list {
+    margin-top: 5px;
+    padding-left: 0;
+    list-style: none;
+  }
+  .file-list li {
+    font-size: 10.5px;
+    color: #334155;
+    padding: 1px 0;
+    white-space: nowrap;
+  }
+  .file-list li::before { content: "📄 "; font-size: 9px; }
+  .file-list li.dir::before { content: "📁 "; font-size: 9px; }
+  .file-list li.app::before { content: "📦 "; font-size: 9px; }
+  .file-list li.warn::before { content: "⚠️ "; font-size: 9px; }
+  .file-list li.ok::before  { content: "✅ "; font-size: 9px; }
+  .file-list li.log::before { content: "📋 "; font-size: 9px; }
+
+  /* ── COLLECTION: outer big boxes ── */
+  .collection {
+    border-radius: 10px;
+    border-width: 2px;
+    border-style: solid;
+    padding: 14px 16px 16px 16px;
+    margin-bottom: 18px;
+  }
+  .collection > .collection-header {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Row / grid helpers */
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row + .row { margin-top: 12px; }
+
+  /* ── GitHub ── */
+  .github { color: var(--col-github); background: var(--col-github-bg); border-color: var(--col-github); }
+  .github .box-label { background: var(--col-github); }
+
+  /* ── Primary repos ── */
+  .primary { color: var(--col-primary); background: var(--col-primary-bg); border-color: var(--col-primary); }
+  .primary .box-label { background: var(--col-primary); }
+
+  /* ── Orphan / stale ── */
+  .orphan { color: var(--col-orphan); background: var(--col-orphan-bg); border-color: var(--col-orphan); }
+  .orphan .box-label { background: var(--col-orphan); }
+
+  /* ── Tools ── */
+  .tools { color: var(--col-tools); background: var(--col-tools-bg); border-color: var(--col-tools); }
+  .tools .box-label { background: var(--col-tools); }
+
+  /* ── Logs ── */
+  .logs { color: var(--col-logs); background: var(--col-logs-bg); border-color: var(--col-logs); }
+  .logs .box-label { background: var(--col-logs); }
+
+  /* ── System ── */
+  .system { color: var(--col-system); background: var(--col-system-bg); border-color: var(--col-system); }
+  .system .box-label { background: var(--col-system); }
+
+  /* ── Upstream / reference ── */
+  .upstream { color: #475569; background: #f8fafc; border-color: #94a3b8; border-style: dashed; }
+  .upstream .box-label { background: #94a3b8; }
+
+  /* warn badge */
+  .badge-warn {
+    display: inline-block;
+    background: var(--col-warn);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .badge-ok {
+    display: inline-block;
+    background: var(--col-github);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* connector arrow hint */
+  .arrow-hint {
+    font-size: 10px;
+    color: #64748b;
+    font-style: italic;
+    margin-top: 5px;
+  }
+
+  /* inner group wrapper */
+  .inner-group {
+    border: 1.5px solid;
+    border-radius: 7px;
+    padding: 10px 12px;
+    margin-bottom: 0;
+  }
+  .inner-group-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 8px;
+    opacity: 0.75;
+  }
+
+  /* section divider */
+  .divider {
+    border: none;
+    border-top: 1px dashed #cbd5e1;
+    margin: 12px 0;
+  }
+
+  /* legend */
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 22px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.82);
+    border: 1.5px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 10.5px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    border: 1.5px solid;
+    flex-shrink: 0;
+  }
+
+  /* consolidation issues panel */
+  .issues {
+    margin-top: 18px;
+    background: #fff8ec;
+    border: 2px solid var(--col-orphan);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .issues h2 {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--col-orphan);
+    margin-bottom: 10px;
+    letter-spacing: 0.03em;
+  }
+  .issue-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 7px;
+    align-items: flex-start;
+    font-size: 11px;
+    color: #1e293b;
+  }
+  .issue-num {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    background: var(--col-orphan);
+    color: white;
+    border-radius: 50%;
+    font-size: 9.5px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 0.5px;
+  }
+
+  .uncommitted {
+    font-size: 10px;
+    color: var(--col-warn);
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  .git-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-top: 3px;
+    background: #1a7f4b22;
+    color: #1a7f4b;
+    border: 1px solid #1a7f4b55;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">OCLP Project — Resource Map &amp; Status Audit</h1>
+<p class="page-subtitle">Macmini5,3 · macOS Tahoe 26.4 (25E246) · Generated 2026-04-09 · akmacks</p>
+
+<!-- ════════════════════════════════════════
+     GITHUB REMOTE
+     ════════════════════════════════════════ -->
+<div class="collection github" style="border-color: var(--col-github);">
+  <div class="collection-header">
+    🌐 GitHub Remote — <em>Point of Truth</em>
+  </div>
+
+  <div class="row">
+
+    <!-- OCLP Fork -->
+    <div class="box github" style="flex: 2; min-width: 280px;">
+      <div class="box-label"><span>Primary Repo</span></div>
+      <div class="box-title">akmacks / OpenCore-Legacy-Patcher</div>
+      <div class="box-sub">Branch: <strong>macos-next</strong> · HEAD: <code>f9e7cf8</code></div>
+      <div class="box-sub">Session 13: KDK forensic · remove Bridge-Restore · handover docs</div>
+      <ul class="file-list">
+        <li class="ok">opencore_legacy_patcher/ (core OCLP code)</li>
+        <li class="ok">docs/ (TAHOE-DEV-LOG, KDK-FORENSIC, forensic/)</li>
+        <li class="ok">PROJECT-PLAN.md · SESSION-HANDOFF.md · TAHOE-DEV-LOG.md</li>
+        <li class="ok">setup_mac_mini.sh · patch_mini.py</li>
+        <li class="dir">ci_tooling/ · payloads/ (gitignored) · Build-Folder/</li>
+        <li class="warn">app_macOS-Intel_BridgeRestore/ — committed but should be removed</li>
+      </ul>
+      <div class="arrow-hint" style="margin-top:6px;">↑ git push origin macos-next</div>
+    </div>
+
+    <!-- BridgeRestore Fork -->
+    <div class="box github" style="flex: 2; min-width: 260px;">
+      <div class="box-label"><span>Bridge-Restore Repo</span></div>
+      <div class="box-title">akmacks / app_macOS-Intel_BridgeRestore</div>
+      <div class="box-sub">Latest: <strong>v1.0.7-beta</strong> (Build 26B07) · commit <code>1f0f315</code></div>
+      <div class="box-sub">v1.0.3 Tahoe TB3 bypass · ARP watchdog · mini-side daemon</div>
+      <ul class="file-list">
+        <li class="ok">scripts/ · launchd/ · docs/ · man/</li>
+        <li class="ok">releases/ (v1.0.2α · v1.0.4α · v1.0.7β .pkg)</li>
+        <li class="ok">pkg-build/ · BridgeRestore.app/ · tools/tb-reset/</li>
+        <li class="dir">logs/ · logs-fix/ · logs-dev/ · logs-sample/</li>
+        <li class="dir">config/ · package.json</li>
+      </ul>
+      <div class="arrow-hint" style="margin-top:6px;">Separate repo — NOT a submodule of OCLP</div>
+    </div>
+
+    <!-- Upstream ref -->
+    <div class="box upstream" style="flex: 1; min-width: 160px;">
+      <div class="box-label"><span>Upstream Reference</span></div>
+      <div class="box-title">dortania / OpenCore-Legacy-Patcher</div>
+      <div class="box-sub">Read-only upstream</div>
+      <div class="box-sub">Target for eventual PRs</div>
+      <br>
+      <div class="box-sub" style="margin-top: 4px; font-style:italic;">Not cloned locally</div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     MAC MINI LOCAL
+     ════════════════════════════════════════ -->
+<div class="collection primary" style="border-color: var(--col-primary); background: #f4f8ff;">
+  <div class="collection-header">
+    💻 Mac mini — Local Filesystem &nbsp;<span style="font-size:11px; font-weight:400; color:#475569;">/Users/akmacks/</span>
+  </div>
+
+  <!-- ── Primary Dev Repos ── -->
+  <div class="inner-group primary" style="margin-bottom: 12px;">
+    <div class="inner-group-label">▶ Primary Local Dev Repos (git-tracked)</div>
+    <div class="row">
+
+      <!-- OCLP Local Repo -->
+      <div class="box primary" style="flex: 2; min-width: 300px;">
+        <div class="box-label"><span>~/OpenCore-Legacy-Patcher/</span></div>
+        <div class="box-title">OCLP Fork — Local Clone</div>
+        <div class="git-badge">🔀 git → akmacks/OpenCore-Legacy-Patcher · macos-next</div>
+        <ul class="file-list" style="margin-top:6px;">
+          <li class="ok">opencore_legacy_patcher/ (constants.py, sys_patch/, efi_builder/…)</li>
+          <li class="ok">docs/ → TAHOE-DEV-LOG.md · KDK-FORENSIC.md · forensic/MetallibSupportPkg/</li>
+          <li class="ok">PROJECT-PLAN.md · SESSION-HANDOFF.md · TAHOE-DEV-LOG.md (root)</li>
+          <li class="ok">setup_mac_mini.sh · patch_mini.py · requirements.txt</li>
+          <li class="dir">ci_tooling/ · payloads/ · Build-Folder/</li>
+          <li>Universal-Binaries-1.9.6.dmg <span style="font-size:9px;">(gitignored, 🔒 local only)</span></li>
+          <li class="warn">app_macOS-Intel_BridgeRestore/ ← STALE EMBEDDED COPY (should be removed)</li>
+        </ul>
+        <div class="uncommitted">⚠ 3 uncommitted changes:<br>
+          &nbsp;&nbsp;support/subprocess_wrapper.py<br>
+          &nbsp;&nbsp;sys_patch/patchsets/hardware/misc/usb11.py<br>
+          &nbsp;&nbsp;sys_patch/sys_patch.py
+        </div>
+      </div>
+
+      <!-- BridgeRestore Local Repo -->
+      <div class="box primary" style="flex: 2; min-width: 280px;">
+        <div class="box-label"><span>~/dev/projects/apps/app_macOS-Intel_BridgeRestore/</span></div>
+        <div class="box-title">BridgeRestore — Canonical Local Repo</div>
+        <div class="git-badge">🔀 git → akmacks/app_macOS-Intel_BridgeRestore</div>
+        <ul class="file-list" style="margin-top:6px;">
+          <li class="ok">scripts/ (20+ shell scripts — tunnel-pro, watchdog, tb-reset…)</li>
+          <li class="ok">launchd/ (9 plists — nat-persist, health-monitor, mini-watchdog…)</li>
+          <li class="ok">docs/ — SESSION-LOG-2026-04-08.md · HANDOVER-OpenClaw-2026-04-08.md</li>
+          <li class="ok">docs/ — TAHOE-DEV-LOG · ROADMAP · TROUBLESHOOTING · OPENCLAW docs</li>
+          <li class="app">BridgeRestore.app/ (compiled)</li>
+          <li class="ok">releases/ — BridgeRestore-1.0.7-beta.pkg ✓ latest</li>
+          <li class="ok">pkg-build/ · man/ · config/ · tools/tb-reset/</li>
+          <li class="dir">logs/ · logs-fix/ · logs-dev/ · logs-sample/</li>
+          <li>package.json · CHANGELOG.md</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Orphaned / Stale Copies ── -->
+  <div class="inner-group orphan" style="margin-bottom: 12px;">
+    <div class="inner-group-label" style="color: var(--col-orphan);">⚠ Orphaned / Stale Copies (not git-tracked, diverged)</div>
+    <div class="row">
+
+      <div class="box orphan" style="flex: 1; min-width: 220px;">
+        <div class="box-label"><span>~/projects/apps/app_macOS-Intel_BridgeRestore/</span></div>
+        <div class="box-title">BridgeRestore — Stale Copy</div>
+        <div class="box-sub">Last modified: ~2026-04-07 · 14 items</div>
+        <ul class="file-list">
+          <li class="warn">No git remote (detached / untracked)</li>
+          <li class="warn">Missing: SESSION-LOG-2026-04-08.md</li>
+          <li class="warn">Missing: HANDOVER-OpenClaw-2026-04-08.md</li>
+          <li class="warn">Missing: logs-fix/ · logs-dev/ · logs-sample/</li>
+          <li class="warn">Missing: install-mini-watchdog.sh · mbp-tb-restore.sh</li>
+          <li>releases/ — has .pkg files (same as canonical)</li>
+        </ul>
+      </div>
+
+      <div class="box orphan" style="flex: 1; min-width: 220px;">
+        <div class="box-label"><span>~/dev/projects/apps/app_macOS-Intel_BridgeRestore.bak/</span></div>
+        <div class="box-title">BridgeRestore — Old Backup</div>
+        <div class="box-sub">Pre-v1.0.3 state · last modified ~2026-04-07</div>
+        <ul class="file-list">
+          <li class="warn">No git remote</li>
+          <li class="warn">Missing all v1.0.3+ additions</li>
+          <li class="warn">No releases/ .pkg files</li>
+          <li class="warn">No logs-fix/ · logs-dev/ · logs-sample/</li>
+          <li>Was: safety backup before Tahoe TB3 bypass work</li>
+        </ul>
+      </div>
+
+      <div class="box orphan" style="flex: 1; min-width: 200px;">
+        <div class="box-label"><span>~/OpenCore-Legacy-Patcher/app_macOS-Intel_BridgeRestore/</span></div>
+        <div class="box-title">BridgeRestore — Embedded in OCLP Repo</div>
+        <div class="box-sub">Committed to macos-next (Session 13: "remove" — not fully removed)</div>
+        <ul class="file-list">
+          <li class="warn">Committed to wrong repo</li>
+          <li class="warn">Not git-linked to BridgeRestore remote</li>
+          <li class="warn">Creates bloat in OCLP history</li>
+          <li>Same content as canonical (copied in earlier session)</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Loose Scripts & Empty Folders ── -->
+  <div class="row" style="margin-bottom: 12px;">
+
+    <div class="box orphan" style="flex: 1; min-width: 200px;">
+      <div class="box-label"><span>~/scripts/ (no git)</span></div>
+      <div class="box-title">Loose Scripts — Duplicates</div>
+      <ul class="file-list">
+        <li class="warn">Duplicates BridgeRestore/scripts/ content</li>
+        <li>status-check.sh · bridge-restore-aliases.sh</li>
+        <li>tunnel-watchdog-mbp.sh · mbp-watchdog.sh</li>
+        <li>rescue-bot.sh · tunnel-pro.sh · tunnel-mini.sh</li>
+        <li>bridge-restore.sh <span style="font-size:9px;">(may be unique)</span></li>
+        <li class="warn">local.mini-bridge-watchdog.plist (plist in wrong dir)</li>
+      </ul>
+    </div>
+
+    <div class="box orphan" style="flex: 1; min-width: 140px;">
+      <div class="box-label"><span>~/bridge-restore/</span></div>
+      <div class="box-title">Empty Folder</div>
+      <ul class="file-list">
+        <li class="warn">Contains only logs/ subdir</li>
+        <li class="warn">No source files</li>
+        <li>Likely: leftover from early dev</li>
+      </ul>
+    </div>
+
+    <div class="box tools" style="flex: 1; min-width: 190px;">
+      <div class="box-label"><span>~/dev/projects/tools/tool_macOS-Universal_tb-reset/</span></div>
+      <div class="box-title">tb-reset C Tool</div>
+      <ul class="file-list">
+        <li class="warn">No git remote (untracked)</li>
+        <li>Makefile · project.yml</li>
+        <li>Sources/tb_probe.c · tb_detect.c · main.c</li>
+        <li>Sources/tb_probe.h · tb_detect.h</li>
+        <li>Used by BridgeRestore/tools/tb-reset/</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- ── Runtime Logs ── -->
+  <div class="inner-group logs">
+    <div class="inner-group-label" style="color: var(--col-logs);">📋 Runtime &amp; Session Logs</div>
+    <div class="row">
+
+      <div class="box logs" style="flex: 1; min-width: 200px;">
+        <div class="box-label"><span>~/Library/Logs/Dortania/</span></div>
+        <div class="box-title">OCLP Session Logs</div>
+        <ul class="file-list">
+          <li class="log">OpenCore-Patcher_2.4.1_2026-04-07_22-27.log</li>
+          <li class="log">OpenCore-Patcher_2.4.1_2026-04-08_08-13.log</li>
+          <li class="log">…+ 8 more logs (2026-04-08)</li>
+          <li class="log">Latest: 2026-04-08_23-43 (most recent session)</li>
+        </ul>
+      </div>
+
+      <div class="box logs" style="flex: 1; min-width: 200px;">
+        <div class="box-label"><span>~/logs/</span></div>
+        <div class="box-title">Bridge-Restore Runtime Logs</div>
+        <ul class="file-list">
+          <li class="log">bridge-restore.log</li>
+          <li class="log">tunnel-pro.log</li>
+          <li class="log">bridge-ip.log</li>
+          <li class="log">bridge-restore-install.log</li>
+          <li class="log">ollama-pull.log</li>
+        </ul>
+      </div>
+
+      <div class="box logs" style="flex: 1; min-width: 200px;">
+        <div class="box-label"><span>~/dev/projects/apps/logs/</span></div>
+        <div class="box-title">Dev Session Markdown Logs</div>
+        <ul class="file-list">
+          <li class="log">2026-03-22-27.md</li>
+          <li class="log">2026-03-28.md</li>
+          <li class="log">2026-03-29.md · 2026-03-31.md</li>
+          <li class="log">tool_macOS-Intel_Elevation.ClaudeCoworkBuildLog.docx</li>
+          <li class="log">tool_macOS-Intel_Elevation.ClaudeCoworkBuildLog.rtfd</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════
+     SYSTEM INSTALLED
+     ════════════════════════════════════════ -->
+<div class="collection system">
+  <div class="collection-header">🖥 System Installed</div>
+  <div class="row">
+
+    <div class="box system" style="flex: 1; min-width: 230px;">
+      <div class="box-label"><span>/Applications/</span></div>
+      <div class="box-title">OpenCore-Patcher.app</div>
+      <div class="box-sub">OCLP v2.4.1 — upstream Dortania release</div>
+      <div class="box-sub"><strong>Not</strong> the dev branch build</div>
+      <ul class="file-list">
+        <li class="warn">Version mismatch: installed=2.4.1, dev=3.0.0-alpha (26A02)</li>
+        <li>Used to run root patches manually on this machine</li>
+      </ul>
+    </div>
+
+    <div class="box system" style="flex: 1; min-width: 260px;">
+      <div class="box-label"><span>/Library/Application Support/Dortania/</span></div>
+      <div class="box-title">OCLP Data &amp; Metallib Cache</div>
+      <ul class="file-list">
+        <li class="app">OpenCore-Patcher.app/ (embedded support app)</li>
+        <li class="dir">MetallibSupportPkg/15.4-24E248/ (183 MB, 151 metallibs)</li>
+        <li class="ok">Pre-fetched for Sequoia 15.4 / Tahoe 26.4 compatibility</li>
+        <li>Forensic copy → ~/OpenCore-Legacy-Patcher/docs/forensic/</li>
+      </ul>
+    </div>
+
+    <div class="box system" style="flex: 1; min-width: 220px;">
+      <div class="box-label"><span>/Volumes/EFI/EFI/OC/</span></div>
+      <div class="box-title">OpenCore EFI Bootloader</div>
+      <ul class="file-list">
+        <li class="ok">OC EFI on disk0s1 (mounted)</li>
+        <li class="ok">config.plist — BCM5722 kernel patch applied</li>
+        <li class="ok">BCM5722 Ethernet patch (Session 4) active</li>
+        <li>Mount: diskutil mount disk0s1</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     CONSOLIDATION ISSUES
+     ════════════════════════════════════════ -->
+<div class="issues">
+  <h2>⚠ Consolidation Issues — Actions Needed to Make GitHub Point of Truth</h2>
+
+  <div class="issue-row">
+    <div class="issue-num">1</div>
+    <div><strong>BridgeRestore has 3+ orphaned copies.</strong> Only <code>~/dev/projects/apps/app_macOS-Intel_BridgeRestore/</code> is git-tracked (→ akmacks/app_macOS-Intel_BridgeRestore). Remove or archive: <code>~/projects/apps/app_macOS-Intel_BridgeRestore/</code>, <code>~/dev/projects/apps/app_macOS-Intel_BridgeRestore.bak/</code>.</div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-num">2</div>
+    <div><strong>BridgeRestore is embedded inside the OCLP repo</strong> at <code>~/OpenCore-Legacy-Patcher/app_macOS-Intel_BridgeRestore/</code>. Session 13 commit says "remove Bridge-Restore" but the directory still exists. Run <code>git rm -r app_macOS-Intel_BridgeRestore/</code> and commit to clean this up.</div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-num">3</div>
+    <div><strong>3 uncommitted changes in OCLP repo</strong> not pushed to GitHub: <code>subprocess_wrapper.py</code>, <code>usb11.py</code>, <code>sys_patch.py</code>. These need review and either commit or stash before GitHub is truly current.</div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-num">4</div>
+    <div><strong>Loose scripts in <code>~/scripts/</code></strong> duplicate <code>app_macOS-Intel_BridgeRestore/scripts/</code>. These appear to be an older working copy before the project structure was formalised. Check for any unique files (e.g., <code>bridge-restore.sh</code>), then remove the folder and use the repo copy.</div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-num">5</div>
+    <div><strong><code>~/bridge-restore/</code> folder is essentially empty</strong> (only contains <code>logs/</code>). Safe to delete after confirming logs have no unique content.</div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-num">6</div>
+    <div><strong><code>tool_macOS-Universal_tb-reset</code> in <code>~/dev/projects/tools/</code> has no git remote.</strong> This C-language TB reset tool should be either added to the BridgeRestore repo (as <code>tools/tb-reset/source/</code>) or given its own repo. Currently it could be lost if the local disk is wiped.</div>
+  </div>
+
+  <div class="issue-row">
+    <div class="issue-num">7</div>
+    <div><strong>Installed OCLP is v2.4.1 (upstream release), dev branch is 3.0.0-alpha.</strong> This is expected but should be noted — you need the GUI to run root patches. Either build from the dev branch or keep v2.4.1 as the patching tool while dev work continues on the code side.</div>
+  </div>
+
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <strong style="margin-right:4px;">Legend:</strong>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--col-github-bg); border-color:var(--col-github);"></div> GitHub Remote (truth)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--col-primary-bg); border-color:var(--col-primary);"></div> Local git-tracked repos</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--col-orphan-bg); border-color:var(--col-orphan);"></div> Orphaned / stale (no git)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--col-tools-bg); border-color:var(--col-tools);"></div> Dev tools</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--col-logs-bg); border-color:var(--col-logs);"></div> Runtime logs</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--col-system-bg); border-color:var(--col-system);"></div> System installed</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#f8fafc; border-color:#94a3b8; border-style:dashed;"></div> Upstream reference</div>
+  <div class="legend-item">⚠ = action needed &nbsp;&nbsp; ✅ = OK &nbsp;&nbsp; 📁 = directory &nbsp;&nbsp; 📦 = app bundle</div>
+</div>
+
+</body>
+</html>
