@@ -2,8 +2,8 @@
 **Project:** OpenCore Legacy Patcher fork for Intel non-T2 Macs / macOS Tahoe  
 **Repo:** https://github.com/akmacks/OpenCore-Legacy-Patcher  
 **Branch:** macos-next  
-**Last updated:** 2026-04-10 13:30 AEST  
-**Updated by:** Claude (Cowork session 16)  
+**Last updated:** 2026-04-12 11:45 AEST  
+**Updated by:** Claude (Cowork session 17 — recovery open)  
 
 ---
 
@@ -38,19 +38,20 @@ MBP OCLP repo: `~/Documents/Github/OpenCore-Legacy-Patcher/`
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| macOS Tahoe 26.4 (25E246) | ✅ Booting | Stable 36+ min |
+| macOS Tahoe 26.4 (25E246) | 🔴 FROZEN | Froze Fri night — needs TDM rollback |
 | OpenCore EFI | ✅ Active | On disk0s1 |
-| USB 1.1 (OHCI/UHCI) | ✅ Patched | AppleUSBUHCI loaded |
-| Sandy Bridge GPU | ✅ Patched | Stable, no freeze |
-| High Sierra GVA | ✅ Patched | Loaded |
+| USB 1.1 (OHCI/UHCI) | ✅ Patched | AppleUSBUHCI loaded (as of Session 16) |
+| Sandy Bridge GPU | ✅ Patched | Stable (as of Session 16) |
+| High Sierra GVA | ✅ Patched | Loaded (as of Session 16) |
 | Ethernet BCM57765 | ❌ Not loading | CatalinaBCM5701 absent from kextstat |
 | Wi-Fi BCM4331 | 🟡 Partial | AirportBrcmFixup loaded, no en1 interface |
 | Bluetooth | 🟡 Loaded | BlueToolFixup loaded, pairing untested |
 | Audio ALC892 | ❓ Unknown | modern_audio skipped (missing payload) |
-| SSH access | ✅ Working | Via tunnel port 2222 + Tailscale |
-| Internet | ✅ Working | Via TB bridge NAT, 26ms RTT |
-| Tailscale | ✅ Connected | 100.86.233.5 |
-| APFS snapshot | ✅ Clean | XID 2239951 is pre-patch sealed baseline |
+| SSH access | ❌ Down | Mini frozen — tunnel not running |
+| Internet | ❌ Down | TB bridge down (mini in TDM) |
+| Tailscale | ❓ Unknown | Was 100.86.233.5 — status unknown while frozen |
+| APFS snapshot | ❓ Unknown | XID 2239951 was last sealed; Apr 11 may have created new one |
+| TDM disk | ❌ Not visible | TB cable reseat required on MBP |
 
 ---
 

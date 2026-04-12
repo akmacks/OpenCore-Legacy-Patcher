@@ -7,6 +7,26 @@
 ---
 <!-- FEED START — newest entries at top, oldest at bottom -->
 
+## [2026-04-12 11:45 AEST] — Session 17 Open (Recovery)
+**Agent:** Claude (Cowork)  
+**Status:** 🔴 TDM RECOVERY IN PROGRESS  
+
+Mac mini failed again after Friday night (2026-04-11) patch attempt. Currently in
+Target Disk Mode. Critical issue: TDM disk not visible in diskutil on MBP — Thunderbolt
+cable must be reseated before recovery can proceed.
+
+Last confirmed good state: Session 16 (2026-04-10) — Tahoe booting, GPU + USB stable,
+internet via TB bridge, Tailscale connected. Ethernet and Wi-Fi still broken at last close.
+
+**Action required:** Reseat TB cable → confirm mini disk appears → rollback snapshot → 
+re-enable SSH → reboot. Standard TDM recovery procedure.
+
+**Next agent:** Complete TDM recovery, then proceed with P1 Ethernet investigation.
+See AGENT-COORDINATION.md.
+
+---
+
+
 ## [2026-04-10 13:30 AEST] — Session 16 Close
 **Agent:** Claude  
 **Status:** 🟢 STABLE  
