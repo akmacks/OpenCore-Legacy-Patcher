@@ -1,185 +1,100 @@
-# OCLP Project Status Feed
-**Format:** Append-only markdown news feed | RSS-compatible via any MD→RSS bridge  
-**Privacy:** No personal identifiers, usernames, IPs, or serial numbers in this file  
-**Audience:** Private feed subscribers + AI agents reading project state  
-**Update cadence:** Each agent appends on session open and close  
+# 🖥️ OCLP Project Status Feed
 
----
-<!-- FEED START — newest entries at top, oldest at bottom -->
-
-## [2026-04-13 16:40 AEST] — Session 18 — Framebuffer Breakthrough
-**Agent:** OpenClaw (OC Pro)
-**Status:** 🟡 VNC PARTIAL — Desktop session incomplete but framebuffer working
-
-**Root cause of VNC black screen / 0x0 desktop size:** No GPU framebuffer driver loaded on Macmini5,3 with Tahoe. Without a framebuffer, WindowServer cannot render a display, loginwindow cannot complete auto-login, and VNC has no surface to share.
-
-**Fix applied:** Enabled WhateverGreen with headless `ig-platform-id` (0x10030000) for Sandy Bridge. This provides a virtual framebuffer (1920×1080) without full GPU acceleration (which causes kernel panics on this hardware).
-
-**Config changes (repeatable):**
-- `WhateverGreen.kext` → Enabled (was disabled since Session 15 panic)
-- `DeviceProperties/Add/PciRoot(0x0)/Pci(0x2,0x0)` → Added `ig-platform-id: 00000310`, `framebuffer-patch-enable: 01000000`, `framebuffer-stolenmem: 0000300a`
-- `autoLoginUserUID` corrected from 503 to 502
-- `lastLoginPanic` cleared from loginwindow preferences
-
-**APFS snapshot:** `com.apple.TimeMachine.2026-04-13-161247.local` (oclp_Session18)
-
-**Remaining issues:** Finder/Dock not launching, VNC mouse sync uncertain, Ethernet/Wi-Fi/Audio still broken. See full session log in APP-DEV-LOGS/2026-04-13-SESSION-18.md.
-
-## [2026-04-12 18:00 AEST] — Session 17 Final Close
-**Agent:** Claude (Cowork)  
-**Status:** 🟡 MINI UP — USB PATCHED (MANUAL) — OCLP PIPELINE BLOCKED  
-
-Session 17 fully closed. All recovery objectives met. Mini is bootable, SSH live,
-USB HID functional via manual kext injection. Tunnel both directions confirmed.
-
-**GPU patch confirmed fatal — standing rule established:**  
-Sandy Bridge Intel HD 3000 OCLP patches crash Macmini5,3 on macOS Tahoe. Confirmed
-twice this session. No GPU patches to be applied until separately resolved. This is
-now a standing rule in AGENT-COORDINATION.md and the new AI coding coordination doc.
-
-**Core blocking issue documented:**  
-OCLP `PatchSysVolume` applies patchsets by model identifier internally. The
-`hardware_details` filter dict does NOT reliably exclude GPU patches for Macmini5,3 —
-USB and GPU patches are bundled together. Fix requires model-exclusion guards in
-`sys_patch/patchsets/hardware/graphics/intel_sandy_bridge.py` and the AMD Terascale
-patchset. Detailed task breakdown in OCLP-AI-Agentic-Coding-Coordination.md.
-
-**APFS snapshot state:**  
-- Sealed baseline: com.apple.os.update-... (XID 2239951) — recovery fallback  
-- Active bless snapshot: com.apple.bless.DF02ADE0-... (XID 2415851) — has USB patches  
-- USB kexts manually injected (fragile — not via OCLP pipeline)  
-
-**1Password CLI neutralised:**  
-IdentityAgent line removed from ~/.ssh/config on mini. SSH keys now load from
-standard paths without 1Password prompts.
-
-**Docs written this session:**  
-- 2026-04-12_handover.md — full session handover for OpenClaw / next agent  
-- OCLP-AI-Agentic-Coding-Coordination.md — incremental test build pipeline + rules  
-- 2026-04-12-SESSION-17-CLOSE.md in APP-DEV-LOGS/  
-
-**Next session P1:**  
-Fix GPU exclusion in OCLP patchsets (Tasks A/B/C in coordination doc), then run
-OCLP-managed USB-only patch via TDM. Tag: v3.0.0-alpha-build1-usb.  
-After that: Ethernet (BCM5722D), Wi-Fi, Audio, Bluetooth — GPU last.
+<small>Append-only markdown feed · <a href="https://netnewswire.blog/2025/11/05/netnewswire-for-mac-and-ios.html">NetNewsWire</a>-optimized · No personal identifiers</small>
 
 ---
 
+<!-- FEED START — newest first -->
 
-## [2026-04-12 16:30 AEST] — Session 17 Close
-**Agent:** Claude (Cowork)  
-**Status:** 🟡 MINI UP — USB KEYBOARD BLOCKED
+### 🟡 Session 18 — Framebuffer Breakthrough
+<sub>2026-04-13 · OC Pro 🦉</sub>
 
-Recovery complete. Mini booted to Finder, SSH stable at bridge0. TDM cycle done.
+**VNC black screen root-caused:** No GPU framebuffer driver = WindowServer can't render a display, loginwindow can't complete, VNC gets `0×0` desktop size.
 
-**Key finding this session — USB 1.1 on Tahoe (OCLP 3.0.0 critical):**  
-The 12.6.2-USB payload kexts (AppleUSBUHCI, AppleUSBOHCI) have vtable ABI mismatches
-against Tahoe's IOUSBHostFamily. AppleUSB20HostController gained 1 vtable entry;
-AppleUSBHostPort gained 1 entry. kmutil refuses to link the kexts. These binaries cannot
-be used on Tahoe without either recompilation or OpenCore vtable patches.
+**Fix:** WhateverGreen enabled in _headless framebuffer mode_ — `ig-platform-id 0x10030000` creates a 1920×1080 virtual display **without** full GPU acceleration (which panics this hardware).
 
-USB topology on Macmini5,3: EHCI mapped to internal ports only (Bluetooth). All 4 rear
-USB ports are on UHCI companion controllers. No UHCI = no rear USB.
+🔧 **Config changes:**
+- `WhateverGreen.kext` → ✅ Enabled (was disabled since S15)
+- `ig-platform-id: 00000310` · `framebuffer-patch-enable: 01000000` · `stolenmem: 640 MB`
+- `autoLoginUserUID` 503 → 502 · `lastLoginPanic` cleared
 
-**Immediate workaround:** USB 2.0 hub with Transaction Translator bypasses UHCI entirely —
-keyboard connects through the hub's TT to EHCI. Works without any root patches.
+📸 Snapshot: `2026-04-13-161247`
 
-**OCLP 3.0.0 action required:** Recompile AppleUSBUHCI + AppleUSBUHCIPCI against Tahoe
-headers (OHCI not needed — Sandy Bridge is UHCI-only). Alternatively, add OpenCore
-binary patches for vtable offset correction at load time.
-
-Session 17 total: 2 TDM recovery cycles, 1Password SSH agent neutralised,
-USB architecture fully mapped, ABI incompatibility root-caused.
-
-
-## [2026-04-12 11:45 AEST] — Session 17 Open (Recovery)
-**Agent:** Claude (Cowork)  
-**Status:** 🔴 TDM RECOVERY IN PROGRESS  
-
-Mac mini failed again after Friday night (2026-04-11) patch attempt. Currently in
-Target Disk Mode. Critical issue: TDM disk not visible in diskutil on MBP — Thunderbolt
-cable must be reseated before recovery can proceed.
-
-Last confirmed good state: Session 16 (2026-04-10) — Tahoe booting, GPU + USB stable,
-internet via TB bridge, Tailscale connected. Ethernet and Wi-Fi still broken at last close.
-
-**Action required:** Reseat TB cable → confirm mini disk appears → rollback snapshot → 
-re-enable SSH → reboot. Standard TDM recovery procedure.
-
-**Next agent:** Complete TDM recovery, then proceed with P1 Ethernet investigation.
-See AGENT-COORDINATION.md.
+⏳ **Still broken:** Finder/Dock not launching · Ethernet · Wi-Fi · Audio
 
 ---
 
+### 🟡 Session 17 Close — USB Architecture Documented
+<sub>2026-04-12 · Claude 🤖</sub>
 
-## [2026-04-10 13:30 AEST] — Session 16 Close
-**Agent:** Claude  
-**Status:** 🟢 STABLE  
+Mini bootable, SSH live. USB HID functional via manual kext injection.
 
-Mac mini running macOS Tahoe 26.4 on 2011 Sandy Bridge hardware reached the
-desktop for the first time in this development cycle without freezing.
-USB 1.1 patches applied successfully — wireless keyboard now functional.
-GPU patches (Sandy Bridge HD3000) running stable for 36+ minutes.
-Internet connectivity confirmed via network bridge. Bluetooth kext stack loaded.
+⚠️ **Standing rule:** Sandy Bridge HD 3000 GPU patches **crash** Macmini5,3 on Tahoe — confirmed twice. No GPU patches until resolved separately.
 
-**Pending:** Ethernet kext not loading (investigation required). Wi-Fi interface
-not yet appearing despite fixup kext present. Audio unverified.
+🔬 **USB 1.1 on Tahoe — critical finding:**
+12.6.2-USB payload kexts have **vtable ABI mismatches** against Tahoe's IOUSBHostFamily. `kmutil` refuses to link. All 4 rear USB ports are UHCI companion controllers → dead without UHCI drivers.
 
-**Next agent:** Investigate Ethernet kext rejection on XNU 25. See AGENT-COORDINATION.md P1.
+🔌 **Workaround:** USB 2.0 hub with Transaction Translator → keyboard connects through EHCI, no kexts needed.
+
+📁 Docs: handover · AI-coding-coordination · session-17-close log
 
 ---
 
-## [2026-04-10 10:30 AEST] — Rollback Complete
-**Agent:** Claude  
-**Status:** 🟡 RECOVERING  
+### 🔴 Session 17 Open — TDM Recovery
+<sub>2026-04-12 · Claude 🤖</sub>
 
-Emergency rollback from yesterday's patch run which caused system freeze.
-Reverted to pre-patch APFS snapshot using Target Disk Mode.
-SSH access permanently enabled on headless machine.
-System stable post-rollback — no freeze.
+Mac mini failed after Friday night patch attempt. In Target Disk Mode.
 
-**Note for Tahoe devs:** `diskutil apfs revertSnapshot` does not exist in Tahoe.
-Use `bless --last-sealed-snapshot` with read-write remount.
+Last good state: Session 16 — Tahoe booting, GPU+USB stable, TB bridge internet, Tailscale connected. Ethernet and Wi-Fi still broken.
+
+→ Reseat TB cable → rollback snapshot → re-enable SSH → reboot
 
 ---
 
-## [2026-04-09 21:00 AEST] — Root Patches Applied (OpenClaw)
-**Agent:** OpenClaw  
-**Status:** 🟡 PATCHES APPLIED — REBOOT PENDING  
+### 🟢 Session 16 — First Stable Desktop
+<sub>2026-04-10 · Claude 🤖</sub>
 
-Bug fixes committed (constants.py + legacy_wireless.py).
-Root patches applied via wx-stub runner:
-- High Sierra GVA ✅
-- Intel Sandy Bridge GPU ✅  
-- Legacy USB 1.1 ✅
+**🎉 Mac mini running Tahoe 26.4 on 2011 Sandy Bridge — desktop reached without freezing.**
 
-Non-Metal Common and Modern Audio skipped (missing payloads for XNU 25).
-Reboot required. Test plan created.
+USB 1.1 patches applied. Wireless keyboard functional. GPU patches stable 36+ min. Internet via TB bridge. Bluetooth kext stack loaded.
+
+⏳ Pending: Ethernet · Wi-Fi · Audio
 
 ---
 
-## [2026-04-08] — Session 13 Close (Claude)
-**Agent:** Claude  
-**Status:** 🟡 PRE-PATCH  
+### 🟡 Rollback Complete
+<sub>2026-04-10 · Claude 🤖</sub>
 
-KDK forensic analysis complete. MetallibSupportPkg manifest documented.
-Two code bugs identified and documented. Version tagged 3.0.0-alpha (26A02).
-Root patches not yet applied pending bug fixes.
+Emergency rollback from patch run that froze the system. TDM → `bless --last-sealed-snapshot`. SSH permanently enabled. Stable.
 
----
-
-## [2026-03-23] — Initial Connectivity Established
-**Agent:** Claude  
-**Status:** 🟡 PARTIAL  
-
-Sandy Bridge GPU patches applied. USB HID fixed (Synergy removed).
-ARD accessible. No Ethernet or Wi-Fi. TB bridge connectivity in progress.
+💡 `diskutil apfs revertSnapshot` does **not** exist on Tahoe — use `bless` instead.
 
 ---
 
-## [2026-03-22] — Project Start
-**Agent:** Claude  
-**Status:** 🔴 INITIAL  
+### 🟡 Root Patches Applied
+<sub>2026-04-09 · OpenClaw 🦉</sub>
 
-OpenCore EFI built for Macmini5,3. Tahoe booting via OC.
-SSH enabled via Target Disk Mode. OCLP repo transferred to target machine.
+Bug fixes committed. Patches applied: ✅ High Sierra GVA · ✅ Sandy Bridge GPU · ✅ USB 1.1
+
+Skipped: Non-Metal Common, Modern Audio (missing XNU 25 payloads). Reboot pending.
+
+---
+
+### 🟡 Session 13 — KDK Forensics
+<sub>2026-04-08 · Claude 🤖</sub>
+
+KDK forensic analysis complete. Two code bugs identified. Tagged `v3.0.0-alpha (26A02)`. Root patches not yet applied.
+
+---
+
+### 🟡 Initial Connectivity
+<sub>2026-03-23 · Claude 🤖</sub>
+
+GPU patches applied. USB HID fixed (Synergy removed). ARD accessible. No Ethernet or Wi-Fi. TB bridge in progress.
+
+---
+
+### 🔴 Project Start
+<sub>2026-03-22 · Claude 🤖</sub>
+
+OpenCore EFI built for Macmini5,3. Tahoe booting via OC. SSH enabled via TDM. OCLP repo transferred.
