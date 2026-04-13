@@ -347,3 +347,53 @@ Priority order (hardware verification sequence post-26.4 reboot):
 3. **Apply Bug 2 fix** — cap Wi-Fi XNU version in `legacy_wireless.py`
 4. **Run root patches manually** — `sudo python3 OpenCore-Patcher.app/Contents/MacOS/...`
 5. **Reboot and verify** — Wi-Fi, BT, Audio, Desktop colour in sequence
+
+---
+
+## Session 18 — 2026-04-13
+
+### Goal: Restore VNC access and desktop session on Mac mini
+
+### Root Cause Discovery
+
+**VNC black screen / 0x0 desktop size** was caused by missing GPU framebuffer driver.
+On Macmini5,3 (Sandy Bridge HD 3000, Device ID `0x0116`), macOS Tahoe has no native
+GPU driver. Without a framebuffer:
+- WindowServer cannot create a renderable surface
+- `screencapture` fails with "could not create image from display"
+- `loginwindow` cannot complete the GUI session (auto-login panics)
+- VNC protocol reports `0x0` desktop dimensions
+
+Previous sessions (15-17) had WhateverGreen **disabled** because full GPU acceleration
+caused kernel panics. The fix: **headless framebuffer mode** — enable WhateverGreen
+but use `ig-platform-id 0x10030000` to create a virtual framebuffer without
+hardware acceleration.
+
+### Config Changes (EFI)
+
+| Key | Value | Purpose |
+|-----|-------|---------|
+| `WhateverGreen.kext` | Enabled=True | Framebuffer driver (was disabled) |
+| `ig-platform-id` | `00000310` | Sandy Bridge headless framebuffer |
+| `framebuffer-patch-enable` | `01000000` | Enable WEG framebuffer patching |
+| `framebuffer-stolenmem` | `0000300a` | 640MB stolen VRAM |
+
+### Other Changes
+
+- Created `openclawadmin` user (did not persist through reboot)
+- Fixed `autoLoginUserUID` from 503 to 502 (akmacks UID)
+- Cleared `lastLoginPanic` from loginwindow preferences
+- APFS snapshot: `com.apple.TimeMachine.2026-04-13-161247.local`
+
+### Result
+
+- ✅ WhateverGreen loaded, 1920×1080 virtual display
+- ✅ loginwindow completes auto-login
+- 🟡 VNC renders desktop but Finder/Dock not running
+- 🟡 Desktop session incomplete
+- ❌ Ethernet, Wi-Fi, Audio still broken
+
+### Standing Rule
+
+**WhateverGreen must remain in headless framebuffer mode.** Full GPU acceleration
+causes kernel panics on Macmini5,3 with Tahoe. `ig-platform-id 0x10030000` only.

@@ -7,6 +7,24 @@
 ---
 <!-- FEED START — newest entries at top, oldest at bottom -->
 
+## [2026-04-13 16:40 AEST] — Session 18 — Framebuffer Breakthrough
+**Agent:** OpenClaw (OC Pro)
+**Status:** 🟡 VNC PARTIAL — Desktop session incomplete but framebuffer working
+
+**Root cause of VNC black screen / 0x0 desktop size:** No GPU framebuffer driver loaded on Macmini5,3 with Tahoe. Without a framebuffer, WindowServer cannot render a display, loginwindow cannot complete auto-login, and VNC has no surface to share.
+
+**Fix applied:** Enabled WhateverGreen with headless `ig-platform-id` (0x10030000) for Sandy Bridge. This provides a virtual framebuffer (1920×1080) without full GPU acceleration (which causes kernel panics on this hardware).
+
+**Config changes (repeatable):**
+- `WhateverGreen.kext` → Enabled (was disabled since Session 15 panic)
+- `DeviceProperties/Add/PciRoot(0x0)/Pci(0x2,0x0)` → Added `ig-platform-id: 00000310`, `framebuffer-patch-enable: 01000000`, `framebuffer-stolenmem: 0000300a`
+- `autoLoginUserUID` corrected from 503 to 502
+- `lastLoginPanic` cleared from loginwindow preferences
+
+**APFS snapshot:** `com.apple.TimeMachine.2026-04-13-161247.local` (oclp_Session18)
+
+**Remaining issues:** Finder/Dock not launching, VNC mouse sync uncertain, Ethernet/Wi-Fi/Audio still broken. See full session log in APP-DEV-LOGS/2026-04-13-SESSION-18.md.
+
 ## [2026-04-12 18:00 AEST] — Session 17 Final Close
 **Agent:** Claude (Cowork)  
 **Status:** 🟡 MINI UP — USB PATCHED (MANUAL) — OCLP PIPELINE BLOCKED  

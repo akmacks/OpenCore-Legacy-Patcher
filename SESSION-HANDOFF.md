@@ -1,23 +1,26 @@
 # OCLP 3.0.0 Dev — Session Handoff
 ## For: OpenClaw (local Ollama on MBP) or next Claude instance
-## Generated: 2026-04-12 | Session 17 closed
+## Generated: 2026-04-13 | Session 18 closed
 ## Project: OpenCore Legacy Patcher
 
 ---
 
 ## ⚠️ CURRENT SITUATION — READ THIS FIRST
 
-**Mac mini is UP.** Booted to Finder. SSH reachable at `192.168.2.2`.
-Tunnel-pro may need restarting: `ssh akmacks@192.168.2.2 'nohup tunnel-pro &>/dev/null &'`
+**Mac mini is UP.** Auto-login working. VNC shows desktop (login screen background).
+SSH reachable at `192.168.2.2` or `100.86.233.5`.
+
+**VNC is partially working** — framebuffer now renders 1920×1080 via WhateverGreen headless mode.
+Finder and Dock are NOT running — desktop session is incomplete.
+Mouse movements via VNC may not sync with physical display.
+
+**WhateverGreen is ENABLED** in headless framebuffer mode (ig-platform-id 0x10030000).
+**Do NOT enable full GPU acceleration** — causes kernel panics on Macmini5,3 with Tahoe.
 
 **USB keyboard is non-functional.** All 4 rear USB ports are dead without UHCI kext support.
 **Workaround: plug keyboard into a USB 2.0 hub first**, then plug hub into the mini.
-Any hub with a Transaction Translator (virtually all USB 2.0 hubs) bridges the keyboard
-through EHCI without needing UHCI drivers. No kexts required.
 
 **Do NOT attempt OCLP root patches until Tahoe-compatible UHCI kext binaries exist.**
-The 12.6.2-USB payload kexts have vtable ABI mismatches against Tahoe's IOUSBHostFamily.
-See USB ARCHITECTURE section below for full details.
 
 ---
 
@@ -110,26 +113,27 @@ REMOTE
 
 ---
 
-## CURRENT STATE (Session 17 end — 2026-04-12)
+## CURRENT STATE (Session 18 end — 2026-04-13)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| macOS Tahoe 26.4 (25E246) | ✅ | Booted to Finder, stable |
-| OpenCore EFI | ✅ | disk0s1 (disk0 = internal SSD) |
-| Boot snapshot | ✅ | XID 2415851 (bless snapshot, not sealed) |
+| macOS Tahoe 26.4 (25E246) | ✅ | Booted, auto-login working |
+| OpenCore EFI | ✅ | disk0s1, WhateverGreen ENABLED (headless) |
+| Boot snapshot | ✅ | XID 2415851 + tmutil snapshot 2026-04-13-161247 |
+| WhateverGreen | ✅ | Headless framebuffer mode, ig-platform-id 0x10030000 |
+| Intel HD 3000 GPU | 🟡 | Framebuffer only (1920×1080), NO hardware acceleration |
+| VNC/Screen Sharing | 🟡 | Renders desktop, Finder/Dock not running |
 | USB keyboard (wired) | ❌ | UHCI kexts ABI-incompatible with Tahoe — use USB hub workaround |
 | USB 2.0 via hub | ✅ | Works if keyboard connected via USB 2.0 hub with TT |
-| Sandy Bridge GPU (HD3000) | ❌ | NOT patched — GPU patches cause system crashes on this hardware |
-| High Sierra GVA | ❌ | NOT patched — blocked with GPU |
 | OCLP root patches | ❌ | Not applied — see USB section below |
 | Internet (TB bridge NAT) | ✅ | SSH reachable at 192.168.2.2 |
-| Tailscale | 🔴 | Not authenticated this session |
+| Tailscale | ✅ | 100.86.233.5 |
 | SSH (direct bridge) | ✅ | akmacks@192.168.2.2 |
-| Reverse tunnel | 🟡 | May need restart: `nohup tunnel-pro &>/dev/null &` |
 | Ethernet BCM57765 | ❌ | CatalinaBCM5701 not loading — device ID mismatch |
-| Wi-Fi BCM4331 | 🟡 | AirportBrcmFixup loaded, no en1 yet |
+| Wi-Fi BCM4331 | 🟡 | AirPortBrcmFixup loaded, no interface |
 | Bluetooth | 🟡 | BlueToolFixup loaded, pairing untested |
-| Audio ALC892 | ❓ | Not patched |
+| Audio ALC892 | ❓ | AppleALC loaded but unverified |
+| openclawadmin user | ❌ | Created in-session but did not persist through reboot |
 
 ## USB ARCHITECTURE ON Macmini5,3 (CRITICAL for OCLP 3.0.0)
 
@@ -258,6 +262,7 @@ Session 14–15 (Apr 9): Root patch attempt → freeze → rollback planned
 Session 15 (Apr 10): TDM rollback to XID 2239951  
 Session 16 (Apr 10): USB 1.1 re-patch, stable desktop 36+ min  
 Session 17 (Apr 12): TDM recovery, USB architecture fully documented, ABI mismatch root-caused  
+Session 18 (Apr 13): Framebuffer breakthrough — WhateverGreen headless mode enables VNC, desktop session partial (Finder/Dock not running)  
 
 Claude session links:
 Session 1: https://claude.ai/chat/aee6f07c-e9b4-47ad-aca4-ffd76a19df4f
