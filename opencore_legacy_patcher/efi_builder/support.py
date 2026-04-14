@@ -13,6 +13,8 @@ from pathlib import Path
 
 from .. import constants
 
+from ..datasets import os_data
+
 
 class BuildSupport:
     """
@@ -100,6 +102,35 @@ class BuildSupport:
         shutil.copy(kext_path, self.constants.kexts_path)
         kext["Enabled"] = True
 
+
+    def _patch_bcm570_tahoe_deps(self) -> None:
+        """
+        Tahoe (Darwin 25+): CatalinaBCM5701Ethernet.kext was compiled against Catalina
+        and declares OSBundleLibraries deps that no longer exist in Tahoe:
+          - com.apple.iokit.IOEthernetAVBController  (removed post-Monterey)
+          - com.apple.driver.mDNSOffloadUserClient    (removed post-Monterey)
+          - com.apple.kpi.private                     (forbidden for non-Apple kexts in Tahoe)
+        Strip them so the kext loader accepts the bundle.
+        """
+        dead_deps = {
+            "com.apple.iokit.IOEthernetAVBController",
+            "com.apple.driver.mDNSOffloadUserClient",
+            "com.apple.kpi.private",
+        }
+        bcm_info = self.constants.kexts_path / "CatalinaBCM5701Ethernet.kext" / "Contents" / "Info.plist"
+        if not bcm_info.exists():
+            return
+        with open(bcm_info, "rb") as f:
+            data = plistlib.load(f)
+        libs = data.get("OSBundleLibraries", {})
+        removed = [k for k in dead_deps if k in libs]
+        if not removed:
+            return
+        for k in removed:
+            del libs[k]
+        with open(bcm_info, "wb") as f:
+            plistlib.dump(data, f, fmt=plistlib.FMT_XML)
+        logging.info(f"  - Tahoe BCM5701 patch: removed dead OSBundleLibraries: {removed}")
 
     def sign_files(self) -> None:
         """
@@ -250,3 +281,7 @@ class BuildSupport:
                     shutil.rmtree(plugin)
 
         Path(self.constants.opencore_zip_copied).unlink()
+
+        # Tahoe: strip dead OSBundleLibraries deps from CatalinaBCM5701Ethernet
+        if self.constants.detected_os >= os_data.os_data.tahoe:
+            self._patch_bcm570_tahoe_deps()

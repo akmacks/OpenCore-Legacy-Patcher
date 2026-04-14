@@ -11,6 +11,8 @@ from pathlib import Path
 
 from .. import constants
 
+from ..datasets import os_data as os_data_module
+
 from ..sys_patch.patchsets import HardwarePatchsetDetection, HardwarePatchsetValidation
 
 from ..wx_gui import (
@@ -205,8 +207,16 @@ class SysPatchDisplayFrame(wx.Frame):
                     patch_label.Centre(wx.HORIZONTAL)
 
 
+        # Tahoe alpha warning banner
+        if self.constants.detected_os >= os_data_module.os_data.tahoe:
+            tahoe_warning = wx.StaticText(frame, label="* Tahoe Alpha — patches under active testing", pos=(-1, patch_label.GetPosition().y + 10))
+            tahoe_warning.SetFont(gui_support.font_factory(11, wx.FONTWEIGHT_BOLD))
+            tahoe_warning.SetForegroundColour(wx.Colour(200, 0, 0))
+            tahoe_warning.Centre(wx.HORIZONTAL)
+            patch_label = tahoe_warning  # shift button anchor down
+
         # Button: Start Root Patching
-        start_button = wx.Button(frame, label="Start Root Patching", pos=(10, patch_label.GetPosition().y + 25), size=(170, 30))
+        start_button = wx.Button(frame, label="Start Root Patching *" if self.constants.detected_os >= os_data_module.os_data.tahoe else "Start Root Patching", pos=(10, patch_label.GetPosition().y + 25), size=(170, 30))
         start_button.Bind(wx.EVT_BUTTON, lambda event: self.on_start_root_patching(patches))
         start_button.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
         start_button.Centre(wx.HORIZONTAL)
