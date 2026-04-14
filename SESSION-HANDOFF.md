@@ -1,4 +1,53 @@
 # OCLP 3.0.0 Dev — Session Handoff
+---
+
+## ⚠️ SESSION 19 UPDATE — 2026-04-13 (TDM repair)
+
+### ROOT CAUSE OF 3-DAY BREAKAGE FOUND AND FIXED
+
+**`local.nat-persist.plist` was incorrectly installed on the Mac mini.**
+This is a GATEWAY-ONLY agent. On the mini it was:
+- Setting bridge0 to **192.168.2.1** (the MBP's IP) on every reboot
+- Enabling IP forwarding (making mini act as a router)  
+- Loading `nat on en0 from 192.168.2.0/24 → (en0)` PF rules (broken: en0/BCM5722 is disabled)
+
+This fought `local.bridge-ip.plist` on every boot, causing non-deterministic IP assignment and
+broken tunnel establishment after every reboot. **Friday night's "more support" changes
+accidentally installed the MBP's nat-persist onto the mini.**
+
+### FIXES APPLIED (via TDM, 2026-04-13)
+
+1. `local.nat-persist.plist` → `local.nat-persist.plist.disabled` on mini ✅
+2. `/etc/pf.anchors/bridge-restore` on mini → replaced with `pass all` (no more client NAT) ✅
+3. `local.bridge-ip.plist` on MBP → renamed to `.disabled` (was setting MBP bridge0 to 192.168.2.2) ✅
+4. `RemoteLogin.plist` written to mini Data volume → ensures sshd starts on boot ✅
+5. `tunnel-pro.sh` on MBP repo updated → ioreg identity check + ifconfig bridge0 IP fix ✅
+
+### CURRENT STATE (post-TDM-repair)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| macOS Tahoe 26.4 (25E246) | ✅ | Boots, auto-login |
+| OpenCore EFI | ✅ | WhateverGreen headless (ig-platform-id 0x10030000) |
+| VNC/Screen Sharing | 🟡 | Framebuffer renders, Finder/Dock not running |
+| USB keyboard (direct) | ❌ | UHCI ABI mismatch — use USB 2.0 hub with TT |
+| USB via hub | ✅ | Hub with Transaction Translator required |
+| SSH (TB bridge) | ✅ (expected) | Should recover post-reboot now nat-persist removed |
+| Tailscale | 🟡 | Should recover once bridge/internet is up |
+| OCLP root patches | ❌ | Not applied — waiting on Tahoe-compatible UHCI kext binaries |
+
+### DO NOT RE-INSTALL nat-persist ON THE MINI
+The plist remains as `.disabled` for reference. The mini is a CLIENT — it has no internet 
+to share. NAT lives only on the MBP (gateway).
+
+### BOOT SEQUENCE AFTER REPAIR (expected)
+1. Mini boots → auto-login
+2. `local.bridge-ip` loops every 20s → sets bridge0 = 192.168.2.2
+3. `local.tunnel-pro` starts → ioreg identity check (~1s) → connects to 192.168.2.1:22 → opens reverse tunnel on MBP port 2222
+4. `local.mini-bridge-watchdog` runs every 30s → monitors, restarts tunnel-pro if needed
+5. MBP: run `tunnel-mini` to complete ControlMaster setup
+
+
 ## For: OpenClaw (local Ollama on MBP) or next Claude instance
 ## Generated: 2026-04-13 | Session 18 closed
 ## Project: OpenCore Legacy Patcher
@@ -204,7 +253,7 @@ system_profiler SPAudioDataType
 
 ## OCLP REPO STATUS (MBP copy — macos-next branch)
 
-Latest commit: `0d86f1090` — "Session 16 final close — full coordination infrastructure"  
+Latest commit: Session 19 close — USB-Map Tahoe fix, 26A03 release  
 Branch: `macos-next`  
 Remote: `https://github.com/akmacks/OpenCore-Legacy-Patcher`  
 
@@ -262,7 +311,8 @@ Session 14–15 (Apr 9): Root patch attempt → freeze → rollback planned
 Session 15 (Apr 10): TDM rollback to XID 2239951  
 Session 16 (Apr 10): USB 1.1 re-patch, stable desktop 36+ min  
 Session 17 (Apr 12): TDM recovery, USB architecture fully documented, ABI mismatch root-caused  
-Session 18 (Apr 13): Framebuffer breakthrough — WhateverGreen headless mode enables VNC, desktop session partial (Finder/Dock not running)  
+Session 18 (Apr 13): Framebuffer breakthrough — WhateverGreen headless mode enables VNC, desktop session partial (Finder/Dock not running)
+Session 19 (Apr 13): USB no-power root-caused (USB-Map Tahoe key format), fixed, USB 1.0+2.0 confirmed working; LaunchAgent set repaired; WhateverGreen headless reverted  
 
 Claude session links:
 Session 1: https://claude.ai/chat/aee6f07c-e9b4-47ad-aca4-ffd76a19df4f
@@ -281,5 +331,51 @@ Session 2: https://claude.ai/chat/3c791c6b-be12-4f24-850f-270b44db9fb7
 7. Git commit + push before ending session
 
 ---
-*Generated: 2026-04-12 ~16:30 AEST | Claude (Cowork session 17 — closed)*
+
+---
+
+## SESSION 19 — TDM REPAIR + USB FIX (2026-04-13)
+
+### What Was Fixed
+
+**1. LaunchAgent root cause (3-day tunnel breakage)**
+- `local.nat-persist.plist` on mini → renamed `.disabled` via TDM
+  - Was setting mini's bridge0 to 192.168.2.1 (MBP's IP), enabling IP forwarding, loading NAT rules
+- `local.bridge-ip.plist` on MBP → renamed `.disabled`
+  - Was overwriting MBP bridge0 to 192.168.2.2 (mini's IP) every 20s
+- `/etc/pf.anchors/bridge-restore` on mini → replaced with `# CLIENT ONLY\npass all`
+
+**2. WhateverGreen headless framebuffer reverted**
+- Removed `PciRoot(0x0)/Pci(0x2,0x0)` DeviceProperties from `/Volumes/EFI/EFI/OC/config.plist`
+  - Had `ig-platform-id: AAADEA==` (0x10030000) + framebuffer-patch-enable + framebuffer-stolenmem
+  - Was causing WindowServer SIGABRT crash loop (consecutiveCrashCount=5) on every boot
+
+**3. USB no-power fix (primary achievement)**
+- Root cause: `USB-Map.kext` in EFI used pre-Tahoe key names
+  - `UsbConnector` and `port` → not read by Tahoe IOUSBHostFamily 1.2
+  - Result: zero `AppleUSBEHCIPort` instances → EHC1/EHC2 entered D3 suspend → VBUS cut
+- Fix: copied `USB-Map-Tahoe.kext` Info.plist format (uses `usb-port-type` / `usb-port-number`)
+  - `cp Build-Folder/.../USB-Map-Tahoe.kext/Contents/Info.plist /Volumes/EFI/EFI/OC/Kexts/USB-Map.kext/Contents/Info.plist`
+- Result confirmed: USB 1.0 direct + USB 2.0 hub both working
+  - EHC1 enumerated: IR Receiver, Microsoft Nano Transceiver, Apple USB Keyboard/Mouse hub
+
+### Current EFI State (post Session 19)
+
+| Key | Value |
+|---|---|
+| Boot snapshot | XID 2415851 |
+| WhateverGreen DeviceProperties | Removed |
+| USB-Map format | Tahoe (usb-port-type / usb-port-number) |
+| kUSBCompanion | false (both EHC1, EHC2) |
+| Boot args | `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic amfi_get_out_of_my_way=0x1` |
+
+### Pending Next Session
+
+1. **BCM57765 Ethernet** — kext loaded, not coming up; check kernel log + ioreg on live boot
+2. **Rsync repos** — mini OCLP repo needs sync from MBP (3+ commits behind)
+3. **tunnel-pro.sh update on mini** — ioreg/ifconfig fixes in MBP repo, not yet on mini (symlink → bridge-restore repo)
+4. **OCLP patcher run** — run 26A03 patcher on mini to verify clean apply
+
+
+*Updated: 2026-04-13 | Claude (Cowork session 19 — closed)*
 *Verify all state with live diagnostics — do not assume memory is current*

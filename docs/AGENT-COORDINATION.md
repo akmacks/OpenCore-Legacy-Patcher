@@ -110,7 +110,75 @@ Just needs a physical test — pair a device and verify.
 
 ---
 
+## CURRENT STATE — Session 19 close (2026-04-13)
+
+| Area | Status | Notes |
+|---|---|---|
+| Boot | ✅ Stable | OpenCore, snapshot XID 2415851 |
+| Tunnel | ✅ Up | 192.168.2.1↔192.168.2.2, reverse SSH :2222 |
+| USB 1.0/1.1 direct | ✅ Working | EHCI TT non-companion mode |
+| USB 2.0 via hub | ✅ Working | EHC1 internal hub enumerated |
+| Keyboard/Mouse | ✅ Working | Via USB hub |
+| GPU (HD 3000) | ✅ Patched | kexts injected |
+| WhateverGreen | ✅ Clean | Headless framebuffer removed from EFI |
+| LaunchAgents | ✅ Clean | nat-persist.disabled (mini), bridge-ip.disabled (MBP) |
+| Ethernet BCM57765 | 🔴 Dead | Kext loaded, device not coming up — next target |
+| Wi-Fi BCM4331 | ⚠️ Unknown | Root patch applied, not verified |
+| Audio ALC892 | ⚠️ Unknown | Fallback kext, not verified |
+| OCLP repo (MBP) | ✅ Current | macos-next, 26A03 tagged |
+| OCLP repo (mini) | ⚠️ Needs sync | rsync pending after session close |
+
+## PRIORITY WORK QUEUE
+
+### 🔴 P1 — Ethernet BCM57765
+
+Kext `CatalinaBCM5701Ethernet.kext` is in EFI and kernel patch is active, but device is not
+coming up. Investigation needed on live boot:
+
+```bash
+# SSH to mini
+ssh -p 2222 akmacks@localhost
+
+# Check if kext matched device
+kextstat | grep -i "BCM\|5701\|ethernet"
+ioreg -p IOService -c IOEthernetController -r -w 0 | head -40
+
+# Kernel log for matching errors
+log show --last 5m --predicate 'process == "kernel"' 2>&1 | grep -iE "BCM|5701|57765|ethernet"
+
+# Check device ID in IORegistry
+ioreg -l | grep -iE "pci14e4|BCM|ethernet" | grep -i "vendor\|product\|device\|class"
+```
+
+### 🟡 P2 — Wi-Fi BCM4331
+
+`IO80211FamilyLegacy.kext` + `IOSkywalkFamily.kext` in EFI. Check if associated or just loaded:
+
+```bash
+/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I
+kextstat | grep -i "wireless\|80211\|brcm"
+```
+
+### 🟡 P3 — Audio ALC892
+
+`AppleALC.kext` in EFI with layout-id 90. Verify:
+
+```bash
+kextstat | grep -i "audio\|HDA\|ALC"
+system_profiler SPAudioDataType 2>/dev/null
+```
+
+### 🟢 P4 — Snapshot Lock & OCLP Patcher Test
+
+After BCM57765 investigation:
+1. Create named APFS snapshot: `sudo tmutil localsnapshot /`
+2. Note snapshot UUID for rollback reference
+3. Run OCLP patcher 26A03 on mini to verify it applies cleanly
+
+---
+
 ## CODE BUGS (both fixed in commit 7d28f4d)
+
 
 | # | File | Bug | Status |
 |---|------|-----|--------|

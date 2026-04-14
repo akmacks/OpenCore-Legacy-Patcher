@@ -1,5 +1,55 @@
 # OpenCore Legacy Patcher changelog
 
+## 3.0.0-alpha (26A03) — 2026-04-13 [Macmini5,3 Tahoe Development Branch]
+
+> **Development fork** by @akmacks. Branch: `macos-next`.
+> Target hardware: Macmini5,3 (Sandy Bridge, Intel HD 3000, BCM4331/BCM57765/BCM2046/ALC892).
+> Target OS: macOS Tahoe 26.x (XNU 25). **Not for general use.**
+
+### Fixed
+- **USB-Map.kext key names updated for Tahoe IOUSBHostFamily 1.2 API** ← *primary fix this build*
+  - Old keys `UsbConnector` / `port` replaced with `usb-port-type` / `usb-port-number`
+  - Tahoe EHCI 1.2 driver silently created zero port objects with old keys → controllers
+    entered D3 suspend → VBUS (5V) cut to all USB ports → no power on any port
+  - Fix: deploy `USB-Map-Tahoe.kext` format to `EFI/OC/Kexts/USB-Map.kext`
+  - Result: USB 1.0/1.1 direct and USB 2.0 hub both confirmed working on Macmini5,3
+  - See `docs/USB-MAP-TAHOE-FIX.md` for full diagnosis, fix, and upstream PR notes
+- **WhateverGreen headless framebuffer reverted** (ig-platform-id 0x10030000 removed from EFI)
+  - Was causing WindowServer SIGABRT crash loop (consecutiveCrashCount=5) on every boot
+  - Session 18 regression — reverted in Session 19
+
+### Infrastructure / Bridge
+- Mini LaunchAgent set cleaned up (Session 19 TDM repair):
+  - `local.nat-persist.plist` → `.disabled` on mini (was root cause of 3-day tunnel breakage)
+  - `local.bridge-ip.plist` → `.disabled` on MBP (was overwriting gateway IP every 20s)
+  - `/etc/pf.anchors/bridge-restore` on mini replaced with client-only passthrough
+- `tunnel-pro.sh` v1.0.7-beta: replaced `system_profiler` UUID check with `ioreg`, replaced
+  `ipconfig getifaddr bridge0` with `ifconfig bridge0 | awk '/inet /{print $2}'` (Tahoe fixes)
+- Thunderbolt bridge fully stable post-repair: 192.168.2.1 (MBP) ↔ 192.168.2.2 (mini)
+
+### Documentation
+- `docs/USB-MAP-TAHOE-FIX.md` — new: full technical writeup, diagnostic commands, upstream PR draft
+- `SESSION-HANDOFF.md` — Session 19 close entry
+- `TAHOE-DEV-LOG.md` — Sessions 17–19 added
+- `docs/STATUS-FEED.md` — Session 19 status appended
+- `docs/AGENT-COORDINATION.md` — current state updated
+
+### Hardware Status (Macmini5,3 as of 26A03)
+
+| Component | Status |
+|---|---|
+| Boot (Sandy Bridge CPU, OpenCore) | ✅ Stable |
+| Intel HD 3000 GPU (kexts patched) | ✅ Working |
+| USB 1.0/1.1 direct port | ✅ Working (EHCI TT, non-companion mode) |
+| USB 2.0 via hub | ✅ Working |
+| Wireless keyboard/mouse | ✅ Working |
+| Thunderbolt Bridge (tunnel) | ✅ Stable |
+| Wi-Fi (BCM4331) | ⚠️ Not yet verified post-patch |
+| Audio (ALC892) | ⚠️ Fallback kext — not verified |
+| Ethernet (BCM57765) | 🔴 Kext loaded, device not coming up — next target |
+
+---
+
 ## 3.0.0-alpha (26A02) — 2026-04-08 [Macmini5,3 Tahoe Development Branch]
 
 > **Development fork** by @akmacks. Branch: `macos-next`.

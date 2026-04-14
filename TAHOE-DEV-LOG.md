@@ -277,3 +277,87 @@ Model: Macmini5,3
 | `opencore_legacy_patcher/wx_gui/gui_main_menu.py` | External volume detection in Post-Install |
 | `opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/modern_audio.py` | Tahoe audio source folder fallback |
 | `opencore_legacy_patcher/support/subprocess_wrapper.py` | sudo bypass for dev (Privileged Helper workaround) |
+
+---
+
+## Session 19 — USB No-Power Root Cause & Fix (2026-04-13)
+
+**Context:** Context window limit hit mid-session; continuing from compacted summary.
+Mini was in TDM for most of this session for filesystem-level repairs.
+
+### Achievements
+
+#### 1. LaunchAgent Set Repaired (root cause of 3-day tunnel breakage)
+
+Via TDM on disk10s2 (mini's Data volume):
+
+- Identified `local.nat-persist.plist` on **mini** as root cause
+  - Was setting `bridge0 = 192.168.2.1` (MBP's IP), enabling IP forwarding, loading NAT rules referencing `en0` (BCM5722 Ethernet, disabled)
+  - Renamed → `local.nat-persist.plist.disabled`
+- Identified `local.bridge-ip.plist` on **MBP** (PID 1016 active!)
+  - Was setting MBP `bridge0 = 192.168.2.2` every 20 seconds
+  - `launchctl unload` → renamed → `.disabled`
+- `/etc/pf.anchors/bridge-restore` on mini replaced with `# CLIENT ONLY
+pass all`
+- `sshd` / RemoteLogin verified enabled on mini's Data volume
+
+#### 2. WhateverGreen Headless Framebuffer Reverted
+
+Removed from `/Volumes/EFI/EFI/OC/config.plist` (edited via TDM):
+- `PciRoot(0x0)/Pci(0x2,0x0)` DeviceProperties dict (ig-platform-id `AAADEA==`, framebuffer-patch-enable, framebuffer-stolenmem)
+- Was causing WindowServer SIGABRT crash loop on every boot (Session 18 regression)
+
+#### 3. USB No-Power — Diagnosed and Fixed
+
+**Diagnosis steps:**
+1. kextstat: `AppleUSBEHCI` + `AppleUSBEHCIPCI` loaded (version 1.2) — no missing kexts
+2. ioreg IOUSB plane: EHC1 and EHC2 both `registered, matched, active` — hardware matched
+3. `controller-statistics`: `kPowerStateOn: 4ms (0%)`, `kPowerStateSuspended: 99%` — **smoking gun**
+4. IOKitDiagnostics: `AppleUSBEHCIPort=0` — zero port objects created despite controllers being active
+5. Compared EFI `USB-Map.kext` Info.plist vs Build-Folder `USB-Map-Tahoe.kext` Info.plist:
+   - EFI (broken): `UsbConnector` / `port`
+   - Build-Folder (correct): `usb-port-type` / `usb-port-number`
+
+**Root cause:** Tahoe's `IOUSBHostFamily` 1.2 changed key names for USB port personality data.
+The old keys are silently ignored → zero ports created → controllers suspend immediately →
+D3 suspend cuts VBUS (5V) to all physical USB ports.
+
+**Fix applied:**
+```bash
+sudo diskutil mount disk0s1
+cp Build-Folder/OpenCore-Build/EFI/OC/Kexts/USB-Map-Tahoe.kext/Contents/Info.plist \
+   /Volumes/EFI/EFI/OC/Kexts/USB-Map.kext/Contents/Info.plist
+sudo reboot
+```
+
+**Verified post-reboot:**
+- `AppleUSBHub` kext now loaded
+- EHC1 → IOUSBHostDevice (internal hub) → IR Receiver, Nano Transceiver, KB/Mouse hub
+- USB 1.0 direct ✅  USB 2.0 hub ✅  Wireless keyboard/mouse ✅
+
+### Key Technical Notes
+
+- `kUSBCompanion: false` is correct and sufficient — EHCI Transaction Translator handles
+  USB 1.0/1.1/2.0 without UHCI companions. UHCI ABI mismatch is a non-issue in this config.
+- OCLP build system already generates `USB-Map-Tahoe.kext`; pipeline fix needed to deploy it
+  automatically for Tahoe targets (see `docs/USB-MAP-TAHOE-FIX.md`)
+- The 3-day breakage had two independent root causes:
+  1. nat-persist.plist on mini → IP conflict on bridge0
+  2. USB-Map old key format → no USB power (pre-existing since Session 17/18)
+
+### Session 19 Git Activity
+
+- `docs/USB-MAP-TAHOE-FIX.md` — new file, full technical writeup
+- `CHANGELOG.md` — 26A03 entry added
+- `SESSION-HANDOFF.md` — Session 19 close
+- `docs/STATUS-FEED.md` — status appended
+- `docs/AGENT-COORDINATION.md` — current state updated
+- Tagged: `3.0.0-alpha-26A03`
+
+### Pending
+
+- BCM57765 Ethernet: kext loads, device not coming up — needs live kernel log investigation
+- Rsync OCLP repo to mini
+- Update tunnel-pro.sh on mini (ioreg + ifconfig fixes)
+- Run OCLP 26A03 patcher on mini
+

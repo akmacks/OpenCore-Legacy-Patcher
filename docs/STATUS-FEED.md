@@ -98,3 +98,18 @@ GPU patches applied. USB HID fixed (Synergy removed). ARD accessible. No Etherne
 <sub>2026-03-22 · Claude 🤖</sub>
 
 OpenCore EFI built for Macmini5,3. Tahoe booting via OC. SSH enabled via TDM. OCLP repo transferred.
+---
+
+### 🟢 Session 19 — USB Power Restored, LaunchAgent Repairs
+<sub>2026-04-13 · Claude 🤖</sub>
+
+**Root cause of 3-day USB no-power found and fixed.**
+
+`USB-Map.kext` was using pre-Tahoe key names (`UsbConnector`/`port`). Tahoe's `IOUSBHostFamily 1.2` reads `usb-port-type`/`usb-port-number`. Old keys silently produced zero port objects → EHC1/EHC2 entered D3 suspend → VBUS cut → no power. Deployed `USB-Map-Tahoe.kext` format. USB 1.0 direct and USB 2.0 hub both confirmed working.
+
+Also fixed: WhateverGreen headless framebuffer reverted (was crashing WindowServer). LaunchAgent set repaired via TDM (nat-persist.disabled on mini, bridge-ip.disabled on MBP). Tunnel stable.
+
+✅ USB working · ✅ Tunnel stable · ✅ Desktop accessible  
+🔴 Next: BCM57765 Ethernet · ⚠️ Wi-Fi / Audio unverified  
+📦 Tagged: **3.0.0-alpha (26A03)**
+
