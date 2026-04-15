@@ -397,3 +397,77 @@ Session 2: https://claude.ai/chat/3c791c6b-be12-4f24-850f-270b44db9fb7
 
 *Updated: 2026-04-15 | Claude (Cowork session 20 — closed)*
 *Verify all state with live diagnostics — do not assume memory is current*
+
+---
+
+## USB INSTALLER CREATION — Tahoe 26.4 for Macmini5,3
+
+### Prerequisites
+- `OpenCore-Patcher-3.0.0-alpha-26A04.pkg` installed on MBP
+- 32GB+ USB drive
+- Macmini5,3 target (EFI already configured: USB-Map fixed, Sandy Bridge removed, -igfxvesa)
+
+### Step 1 — Install OCLP on MBP
+```
+Double-click OpenCore-Patcher-3.0.0-alpha-26A04.pkg
+→ Installs to /Library/Application Support/Dortania/OpenCore-Patcher.app
+```
+
+### Step 2 — Create Tahoe 26.4 USB Installer
+```
+Open OpenCore-Patcher.app
+→ "Create macOS Installer"
+→ Select USB drive (will be erased)
+→ Download macOS Tahoe 26.4 (25E246) if not cached
+→ Creates bootable installer on USB
+```
+
+### Step 3 — Build and Install OpenCore to USB
+```
+In OCLP → "Build and Install OpenCore"
+→ Model: Macmini5,3
+→ Install to: USB drive EFI partition
+→ This places our fork EFI (USB-Map fix, no Sandy Bridge, -igfxvesa) on the USB
+```
+
+### Step 4 — Boot Mini from USB
+```
+Power on mini → hold Option key → select USB installer
+```
+
+### Step 5 — Fresh Install Options
+
+**Option A: Install to External HDD**
+- Connect external HDD/SSD to mini via USB
+- Proceed with macOS install → select external drive
+- After install: run OCLP post-install patches (Sandy Bridge EXCLUDED)
+
+**Option B: New APFS Container on Internal Disk (non-destructive)**
+- In Tahoe installer → Utilities → Disk Utility
+- Select disk0 (mini's internal 251GB) → Partition
+- Add new APFS partition alongside existing Server HD
+- Install Tahoe into new container
+- Existing install preserved
+
+**Option C: Erase and reinstall Server HD**
+- In Disk Utility → erase Server HD → reinstall
+- Cleanest option; loses all existing data
+
+### Post-Install (all options)
+```
+Boot into new install → open OCLP
+→ Post-Install Root Patches
+→ IMPORTANT: Sandy Bridge GPU patchset will now return {} — safe to run
+→ USB 1.1 patchset will also return {} on Darwin 25+ — safe to run
+→ Run patches → reboot → stable Tahoe on Macmini5,3
+```
+
+### Known Good Config (26A04)
+| Component | Post-Install Status |
+|---|---|
+| Boot | ✅ OpenCore from USB/EFI |
+| USB power (EHC1+EHC2) | ✅ kUSBWakePowerSupply confirmed |
+| Sandy Bridge GPU | 🚫 Excluded — headless only |
+| USB 1.1 patchset | 🚫 Excluded on Darwin 25+ |
+| Thunderbolt Bridge | ✅ Stable (bridge-restore app) |
+
