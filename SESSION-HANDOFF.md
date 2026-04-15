@@ -1,6 +1,21 @@
 # OCLP 3.0.0 Dev — Session Handoff
 ---
 
+## ⚠️ SESSION 20 UPDATE — 2026-04-15 (crash day — Sandy Bridge GPU + USB 1.1 guard)
+
+### CRITICAL FIXES APPLIED TODAY
+
+1. **USB 1.1 patchset accidentally applied** → destroyed USB + Thunderbolt bridge → 8hr TDM recovery
+   - `usb11.py` now guards Darwin 25+ — will never apply IOUSBHostFamily from Monterey on Tahoe
+2. **Sandy Bridge GPU patchset crashing Tahoe 26.4** → kernel panic every ~2min via mediaanalysisd
+   - All 6 HD 3000 kexts removed from system volume via TDM; KC rebuilt clean
+   - `intel_sandy_bridge.py` now returns `{}` on Darwin 25+ — will never apply on Tahoe
+3. **USB-Map.kext EFI** — power keys moved from unmatched `AppleUSBHostResources` to EHC1/EHC2
+   - Confirmed: `kUSBWakePowerSupply = 4100` live in IOKit on both controllers
+4. **Version:** 3.0.0-alpha-26A04
+
+---
+
 ## ⚠️ SESSION 19 UPDATE — 2026-04-13 (TDM repair)
 
 ### ROOT CAUSE OF 3-DAY BREAKAGE FOUND AND FIXED
@@ -253,16 +268,17 @@ system_profiler SPAudioDataType
 
 ## OCLP REPO STATUS (MBP copy — macos-next branch)
 
-Latest commit: Session 19 close — USB-Map Tahoe fix, 26A03 release  
+Latest commit: Session 20 — Sandy Bridge GPU ceiling + USB 1.1 Tahoe guard, 26A04 release  
 Branch: `macos-next`  
 Remote: `https://github.com/akmacks/OpenCore-Legacy-Patcher`  
 
 Files modified vs upstream Dortania (do not overwrite):
 1. `opencore_legacy_patcher/support/subprocess_wrapper.py` — sudo bypass
 2. `opencore_legacy_patcher/sys_patch/sys_patch.py` — preflight skip missing payloads
-3. `opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/usb11.py` — Macmini5,x exception
+3. `opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/usb11.py` — Tahoe guard (Darwin 25+ skip)
 4. `opencore_legacy_patcher/constants.py` — `legacy_accel_support` Tahoe fix
 5. `opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/legacy_wireless.py` — XNU cap fix
+6. `opencore_legacy_patcher/sys_patch/patchsets/hardware/graphics/intel_sandy_bridge.py` — Tahoe ceiling (Darwin 25+ skip)
 
 ---
 
@@ -359,23 +375,25 @@ Session 2: https://claude.ai/chat/3c791c6b-be12-4f24-850f-270b44db9fb7
 - Result confirmed: USB 1.0 direct + USB 2.0 hub both working
   - EHC1 enumerated: IR Receiver, Microsoft Nano Transceiver, Apple USB Keyboard/Mouse hub
 
-### Current EFI State (post Session 19)
+### Current EFI State (post Session 20)
 
 | Key | Value |
 |---|---|
-| Boot snapshot | XID 2415851 |
-| WhateverGreen DeviceProperties | Removed |
-| USB-Map format | Tahoe (usb-port-type / usb-port-number) |
-| kUSBCompanion | false (both EHC1, EHC2) |
-| Boot args | `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic amfi_get_out_of_my_way=0x1` |
+| Boot args | `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic amfi_get_out_of_my_way=0x1 -igfxvesa` |
+| WhateverGreen DeviceProperties | Removed (Session 19) |
+| USB-Map format | Tahoe (usb-port-type / usb-port-number) + power keys in EHC1+EHC2 |
+| Sandy Bridge GPU kexts | Removed from system volume — headless operation |
+| AppleUSBHostResources personality | Removed from USB-Map.kext |
+| kUSBWakePowerSupply / kUSBSleepPowerSupply | Confirmed live in EHC1 + EHC2 IOKit tree |
 
 ### Pending Next Session
 
-1. **BCM57765 Ethernet** — kext loaded, not coming up; check kernel log + ioreg on live boot
-2. **Rsync repos** — mini OCLP repo needs sync from MBP (3+ commits behind)
-3. **tunnel-pro.sh update on mini** — ioreg/ifconfig fixes in MBP repo, not yet on mini (symlink → bridge-restore repo)
-4. **OCLP patcher run** — run 26A03 patcher on mini to verify clean apply
+1. **Verify mini stability** — confirm no crashes past 10-min window post Session 20 fixes
+2. **BCM57765 Ethernet** — kext loaded, not coming up; check kernel log + ioreg on live boot
+3. **Build OCLP 3.0.0-alpha .pkg** — install on MBP to create Tahoe 26.4 USB installer for Macmini5,3
+4. **USB installer / fresh install** — investigate Tahoe 26.4 install to external HDD or new APFS container
+5. **Rsync OCLP repo to mini** — push 26A04 changes, re-run patcher (Sandy Bridge excluded)
+6. **Wi-Fi (BCM4331)** — not yet verified post-patch
 
-
-*Updated: 2026-04-13 | Claude (Cowork session 19 — closed)*
+*Updated: 2026-04-15 | Claude (Cowork session 20 — closed)*
 *Verify all state with live diagnostics — do not assume memory is current*

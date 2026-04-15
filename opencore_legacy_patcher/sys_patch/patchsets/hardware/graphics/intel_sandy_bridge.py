@@ -97,6 +97,15 @@ class IntelSandyBridge(BaseHardware):
         if self.native_os() is True:
             return {}
 
+        if self._xnu_major >= os_data.tahoe.value:
+            # Sandy Bridge GPU kexts (AppleIntelHD3000Graphics, AppleIntelSNBGraphicsFB et al.)
+            # cause kernel panics on Tahoe 26.x (Darwin 25+).
+            # Root cause: IOSurface/Metal ABI changed in Darwin 25; OSMetaClass vtable null-deref
+            # in IOGen575Shared::new_iosurface_texture triggered by mediaanalysisd on every boot.
+            # Confirmed on Macmini5,3 Tahoe 26.4 — run headless without GPU acceleration.
+            # Tracked: docs/SANDY-BRIDGE-TAHOE-CRASH.md
+            return {}
+
         if self._xnu_major not in self._constants.legacy_accel_support and self._dortania_internal_check() is False:
             return {**self._model_specific_patches()}
 

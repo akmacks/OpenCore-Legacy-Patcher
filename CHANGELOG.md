@@ -1,5 +1,61 @@
 # OpenCore Legacy Patcher changelog
 
+## 3.0.0-alpha (26A04) — 2026-04-15 [Macmini5,3 Tahoe Development Branch]
+
+> **Development fork** by @akmacks. Branch: `macos-next`.
+> Target hardware: Macmini5,3 (Sandy Bridge CPU, headless, BCM4331/BCM57765/BCM2046/ALC892).
+> Target OS: macOS Tahoe 26.4 (XNU 25). **Not for general use.**
+
+### Critical Fixes
+- **Sandy Bridge GPU patchset blocked on Tahoe 26.x** ← *primary fix this build*
+  - `AppleIntelHD3000Graphics.kext`, `AppleIntelSNBGraphicsFB.kext` and all HD 3000 bundles
+    cause kernel panics on Darwin 25+ (Tahoe 26.x)
+  - Root cause: IOSurface/Metal ABI changed in Darwin 25; `IOGen575Shared::new_iosurface_texture`
+    null-derefs on OSMetaClass vtable when `mediaanalysisd` requests a GPU texture on boot
+  - `intel_sandy_bridge.py`: added Tahoe ceiling — `patches()` returns `{}` on Darwin 25+
+  - Sandy Bridge kexts manually removed from Macmini5,3 system volume via TDM; KC rebuilt
+  - Macmini5,3 runs headless without GPU acceleration — confirmed stable
+  - See `docs/SANDY-BRIDGE-TAHOE-CRASH.md`
+
+- **USB 1.1 patchset blocked on Tahoe 26.x** ← *critical safety guard*
+  - `IOUSBHostFamily.kext` from Monterey 12.6.2 is ABI-incompatible with Darwin 25 kernel
+  - Accidental application on 2026-04-15 destroyed USB + Thunderbolt bridge; recovery took ~8 hours
+  - `usb11.py`: `_base_patches()` and `_extended_patches()` both return `{}` on Darwin 25+
+  - Tahoe's native `IOUSBHostFamily` supports EHCI/TT without UHCI companions — no patch needed
+
+### Fixed
+- **USB-Map.kext EFI: power keys moved to EHC personalities**
+  - `kUSBWakePowerSupply` / `kUSBSleepPowerSupply` / port current limits moved from
+    `AppleUSBHostResources` personality (not matched on Tahoe) into `EHC1` and `EHC2` personalities
+  - `AppleUSBHostResources` personality removed entirely (caused null-deref risk on Tahoe)
+  - Confirmed via `ioreg`: both EHC1 and EHC2 show `kUSBWakePowerSupply = 4100` live
+
+### EFI Changes
+- Boot args: added `-igfxvesa` — forces VESA/software rendering, belt-and-suspenders GPU disable
+
+### Documentation
+- `docs/SANDY-BRIDGE-TAHOE-CRASH.md` — new: full panic analysis, root cause, fix procedure
+- `SESSION-HANDOFF.md` — Session 20 close entry
+- `TAHOE-DEV-LOG.md` — Session 20 added
+- `docs/AGENT-COORDINATION.md` — current state updated
+
+### Hardware Status (Macmini5,3 as of 26A04)
+
+| Component | Status |
+|---|---|
+| Boot (Sandy Bridge CPU, OpenCore) | ✅ Stable |
+| Intel HD 3000 GPU | 🚫 Disabled (headless — crashes Tahoe 26.4) |
+| USB power (EHC1 + EHC2) | ✅ Power keys confirmed in IOKit tree |
+| USB 1.0/1.1 direct port | ✅ Working |
+| USB 2.0 via hub | ✅ Working |
+| Wireless keyboard/mouse | ✅ Working |
+| Thunderbolt Bridge (tunnel) | ✅ Stable |
+| Wi-Fi (BCM4331) | ⚠️ Not yet verified post-patch |
+| Audio (ALC892) | ⚠️ Fallback kext — not verified |
+| Ethernet (BCM57765) | 🔴 Kext loaded, device not coming up — next target |
+
+---
+
 ## 3.0.0-alpha (26A03) — 2026-04-13 [Macmini5,3 Tahoe Development Branch]
 
 > **Development fork** by @akmacks. Branch: `macos-next`.

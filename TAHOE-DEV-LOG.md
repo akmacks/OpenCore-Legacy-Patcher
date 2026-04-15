@@ -361,3 +361,91 @@ sudo reboot
 - Update tunnel-pro.sh on mini (ioreg + ifconfig fixes)
 - Run OCLP 26A03 patcher on mini
 
+
+---
+
+## Session 20 — Sandy Bridge GPU Crash Root-Caused + USB Guard (2026-04-15)
+
+**Context:** Mini crashing all day. Multiple TDM sessions to diagnose and repair.
+Build: Tahoe 26.4 (25E246) on Macmini5,3.
+
+### Root Causes Identified and Fixed
+
+#### 1. USB 1.1 Patchset Applied Accidentally (Morning — 8hr Recovery)
+
+The Legacy USB 1.1 patchset (`IOUSBHostFamily.kext` from Monterey 12.6.2 + OHCI/UHCI kexts)
+was accidentally applied to the mini running Tahoe 26.4. This kext is ABI-incompatible with
+the Darwin 25 kernel and destroyed all USB + Thunderbolt bridge connectivity.
+
+**Recovery procedure (via OCLP USB boot → Recovery DMG):**
+1. Mount System volume (`diskutil mount disk2s4`) + make writable (`mount -uw "/Volumes/Server HD"`)
+2. Replace IOUSBHostFamily.kext with KDK version from Data volume
+3. Remove all Sonoma 14.5 patchset USB kexts (AppleUSBCDC, AppleUSBAudio, OHCI, UHCI sub-kexts)
+4. `kmutil install --volume-root "/Volumes/Server HD" --update-all --variant-suffix release --allow-missing-kdk`
+5. `diskutil apfs updatePreboot disk2s4`
+6. Reboot — USB restored, bridge0 stable
+
+**Code fix:** `usb11.py` — `_base_patches()` and `_extended_patches()` now return `{}` on `xnu_major >= tahoe (25)`.
+
+#### 2. Sandy Bridge GPU Patchset Crashing on Tahoe 26.4 (Afternoon)
+
+After the USB recovery, mini continued crashing every ~10 minutes with kernel panics.
+
+**Panic analysis:**
+- Bug type 210, fault CR2 = 0x560088 (near-null pointer dereference)
+- Panicked task: `mediaanalysisd`
+- Crash location: `com.apple.driver.AppleIntelHD3000Graphics :: IOGen575Shared::new_iosurface_texture + 0x3a`
+- Call: `OSMetaClassD2Ev + 0x18` — vtable dispatch through corrupt/null OSMetaClass pointer
+- Triggered within ~2 minutes of every boot via mediaanalysisd GPU texture request
+
+**Root cause:** `AppleIntelHD3000Graphics.kext` (OCLP Sandy Bridge patchset) was patched against
+the 26.3.1 KDK. After upgrade to 26.4, the IOSurface/Metal ABI changed and the kext's vtable
+layout became incompatible with the Tahoe kernel. The `kmutil` rebuild during the USB recovery
+re-included the still-present Sandy Bridge kexts in the new KC, triggering the crashes.
+
+**Fix applied via TDM:**
+- Sandy Bridge kexts moved to `/Volumes/Server HD — Data/Removed-Sandy-Bridge-Kexts/` (recoverable)
+  - `AppleIntelHD3000Graphics.kext`
+  - `AppleIntelHD3000GraphicsGA.plugin`
+  - `AppleIntelHD3000GraphicsGLDriver.bundle`
+  - `AppleIntelHD3000GraphicsVADriver.bundle`
+  - `AppleIntelSNBGraphicsFB.kext`
+  - `AppleIntelSNBVA.bundle`
+- `kmutil install --volume-root "/Volumes/Server HD" --update-all --variant-suffix release --allow-missing-kdk` → KC rebuilt cleanly
+- EFI boot arg `-igfxvesa` added as belt-and-suspenders GPU hardware disable
+
+**Code fix:** `intel_sandy_bridge.py` — `patches()` returns `{}` on `xnu_major >= tahoe (25)`.
+
+**Note:** Macmini5,3 operates as a headless server. GPU acceleration is not required.
+
+#### 3. USB-Map.kext EFI Power Key Fix (Session 20)
+
+Previous USB-Map.kext had `kUSBWakePowerSupply` / `kUSBSleepPowerSupply` only in the
+`AppleUSBHostResources` personality, which is not matched on Tahoe. Keys moved into the
+`EHC1` and `EHC2` personalities directly. Confirmed live via `ioreg`: both controllers
+show `kUSBWakePowerSupply = 4100` and `kUSBSleepPowerSupply = 3600`.
+
+### Current EFI State (post Session 20)
+
+| Key | Value |
+|---|---|
+| Boot args | `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic amfi_get_out_of_my_way=0x1 -igfxvesa` |
+| Sandy Bridge kexts | Removed from system volume |
+| USB-Map personalities | EHC1 + EHC2 with power keys |
+| AppleUSBHostResources personality | Removed |
+
+### Session 20 Git Activity
+
+- `opencore_legacy_patcher/sys_patch/patchsets/hardware/graphics/intel_sandy_bridge.py` — Tahoe ceiling added
+- `opencore_legacy_patcher/sys_patch/patchsets/hardware/misc/usb11.py` — Tahoe guard added
+- `docs/SANDY-BRIDGE-TAHOE-CRASH.md` — new crash analysis doc
+- `CHANGELOG.md` — 26A04 entry added
+- `SESSION-HANDOFF.md` — Session 20 close
+- Tagged: `3.0.0-alpha-26A04`
+
+### Pending
+
+- BCM57765 Ethernet: kext loads, device not coming up — needs live kernel log investigation
+- Rsync OCLP repo to mini + run patcher with 26A04 (Sandy Bridge excluded, USB guard in place)
+- Build OCLP 3.0.0-alpha .pkg for MBP → use to create Tahoe 26.4 USB installer for Macmini5,3
+- Investigate fresh install path: Tahoe 26.4 to external HDD or new APFS container on mini's disk

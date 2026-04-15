@@ -75,6 +75,13 @@ class USB11Controller(BaseHardware):
         """
         Base patches for USB 1.1 Controller
         """
+        if self._xnu_major >= os_data.tahoe.value:
+            # IOUSBHostFamily.kext from Monterey 12.6.2 is ABI-incompatible with Darwin 25 (Tahoe).
+            # Installing it breaks ALL USB and the Thunderbolt bridge (bridge0).
+            # Tahoe ships a native IOUSBHostFamily that supports EHCI/TT without UHCI companions.
+            # Confirmed on Macmini5,3: do NOT apply this patchset on Darwin 25+.
+            # Recovery from accidental application took ~8 hours (2026-04-15).
+            return {}
         return {
             "Legacy USB 1.1": {
                 PatchType.OVERWRITE_SYSTEM_VOLUME: {
@@ -90,6 +97,8 @@ class USB11Controller(BaseHardware):
         """
         Extended patches for USB 1.1 Controller
         """
+        if self._xnu_major >= os_data.tahoe.value:
+            return {}
         if self._xnu_float < self.macOS_14_1:
             return {}
 
