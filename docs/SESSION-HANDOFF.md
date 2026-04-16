@@ -1,6 +1,6 @@
 # OCLP 3.0.0-alpha — Session Handoff
 ## For: OpenClaw / Claude Code / Codex / next Claude session
-## Updated: 2026-04-10 13:30 AEST | Session 16 close
+## Updated: 2026-04-16 16:00 AEST | Session 23 close
 ## Branch: macos-next | Last commit: see git log
 ## Full coordination: docs/AGENT-COORDINATION.md
 ## Status feed: docs/STATUS-FEED.md
@@ -31,7 +31,7 @@ cd ~/OpenCore-Legacy-Patcher && git log --oneline -5
 |------|-------|
 | macOS | Tahoe 26.4 (25E246) — booting, stable |
 | OCLP root patches | USB 1.1 + Sandy Bridge GPU + GVA applied |
-| USB HID | ✅ Working (UHCI kext loaded) |
+| USB HID | ✅ Working (EHCI + internal hub, USB-Map v1.1 deployed) |
 | GPU / Desktop | ✅ Stable, colour desktop, no freeze |
 | Ethernet (en0) | ❌ CatalinaBCM5701 not loading — P1 priority |
 | Wi-Fi (en1) | 🟡 AirportBrcmFixup loaded, no interface |
@@ -40,10 +40,31 @@ cd ~/OpenCore-Legacy-Patcher && git log --oneline -5
 | SSH | ✅ Via tunnel port 2222 |
 | Internet | ✅ Via TB bridge, 26ms RTT |
 | Tailscale | ✅ Connected |
-| Git | macos-next, commits 7d28f4d → 74a190b4c → pending |
+| Git | macos-next, commits up to 5f4a738b8 |
 
 ---
 
+## Session 23 Changes (2026-04-16)
+
+### USB-Map.kext v1.1 — Critical Fix
+- **Bug:** IONameMatch was `EHC1`/`EHC2` but ACPI renames changed devices to `EH01`/`EH02`
+- **Result:** All merge properties were inert — zero port mapping, no kUSBCompanion
+- **Fix:** Updated IONameMatch to `EH01`/`EH02`, port-count to 3, added PRT2/PRT3
+- **Design:** `kUSBCompanion=false` stays — EHCI handles all USB 1.x internally on Tahoe
+- **APFS Snapshot:** `2026-04-16-154517`
+- **EFI Backup:** `USB-Map.kext.session21-backup`
+
+### ACPI _STA Values (verified live)
+| Device | _STA | Meaning |
+|--------|------|---------|
+| EH01 | 0x0F | Fully active |
+| EH02 | 0x0F | Fully active |
+| UHC1 | 0x0B | Present, no I/O decode |
+| UHC2-4 | 0x09 | Disabled |
+| UHC5 | 0x0B | Present, no I/O decode |
+| UHC6-7 | 0x09 | Disabled |
+
+## TOP PRIORITY: Ethernet Fix
 ## TOP PRIORITY: Ethernet Fix
 
 CatalinaBCM5701Ethernet.kext is in EFI, matches device pci14e4,16b4,

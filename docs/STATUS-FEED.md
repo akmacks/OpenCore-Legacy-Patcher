@@ -4,6 +4,24 @@
 
 ---
 
+### 🟢 Session 23 — USB-Map Kext v1.1: IONameMatch Fix + Port Mapping
+<sub>2026-04-16 · OC Pro 🦉</sub>
+
+**Critical bug found and fixed:** After Session 21's ACPI renames (`EHC1→EH01`, `EHC2→EH02`), the USB-Map.kext still had `IONameMatch = EHC1/EHC2`. All merge properties were **completely inert** — zero port mapping, no `kUSBCompanion` setting applied.
+
+**Fix applied (v1.1):**
+- `IONameMatch` → `EH01`/`EH02` (matching renamed ACPI devices)
+- `port-count` → 3 per controller (was 1, matching actual hardware)
+- PRT2 + PRT3 added as external Type-A ports (type 0)
+- PRT1 stays internal (type 255) — hub, IR, BT
+- `kUSBCompanion=false` preserved (Tahoe EHCI handles all USB 1.x internally)
+
+**ACPI _STA verification:** EH01/EH02 = 0x0F (active), UHC1/UHC5 = 0x0B (present), UHC2-4/UHC6-7 = 0x09 (disabled, not needed).
+
+🟢 **EFI deployed, APFS snapshot taken, reboot pending.** No SSDT needed — EHCI-with-TT handles all current devices.
+
+---
+
 ### 🔴 Session 22 — Stage 1 Verified: EHC Renames Worked (Reboot Success)
 <sub>2026-04-16 · OC Pro 🦉</sub>
 
