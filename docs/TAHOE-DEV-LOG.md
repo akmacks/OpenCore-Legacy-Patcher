@@ -397,3 +397,55 @@ hardware acceleration.
 
 **WhateverGreen must remain in headless framebuffer mode.** Full GPU acceleration
 causes kernel panics on Macmini5,3 with Tahoe. `ig-platform-id 0x10030000` only.
+
+## Session 23 — 2026-04-16
+
+### Goal: Fix USB-Map kext to match ACPI renames (EHC1→EH01, EHC2→EH02)
+
+### Root Cause Discovery
+
+**USB-Map.kext IONameMatch targeting wrong device names!** Session 21 renamed ACPI devices
+from `EHC1/EHC2` to `EH01/EH02`, but the USB-Map.kext still had `IONameMatch = EHC1` and
+`IONameMatch = EHC2`. Since macOS matches IOKit personalities by the ACPI device name
+_after rename processing_, these entries **never matched** and were completely inert.
+
+This meant:
+- No port type mapping was applied (ports treated as unknown)
+- `kUSBCompanion=false` was never set on the active controllers
+- All port-count was wrong (1 instead of 3)
+
+### Fix Applied: USB-Map.kext v1.1
+
+| Change | Old | New |
+|--------|-----|-----|
+| IONameMatch (EH01 personality) | `EHC1` | `EH01` |
+| IONameMatch (EH02 personality) | `EHC2` | `EH02` |
+| port-count (both) | 1 (`0x01`) | 3 (`0x03`) |
+| PRT2 added (both) | — | type 0 (Type-A external) |
+| PRT3 added (both) | — | type 0 (Type-A external) |
+| PRT1 (both) | type 255 | type 255 (unchanged, internal) |
+| kUSBCompanion (both) | false | false (unchanged) |
+
+### ACPI _STA Verification
+
+| Device | _STA | Meaning |
+|--------|------|---------|
+| UHC1 | 0x0B | Present, no decode |
+| UHC2–UHC4 | 0x09 | Disabled |
+| UHC5 | 0x0B | Present, no decode |
+| UHC6–UHC7 | 0x09 | Disabled |
+| EH01 | 0x0F | Fully active |
+| EH02 | 0x0F | Fully active |
+
+### Design Decision: No SSDT for UHCI (Yet)
+
+With `kUSBCompanion=false`, the EHCI controllers handle all USB 1.x traffic internally.
+The 5 disabled UHCI controllers (UHC2-4, UHC6-7) aren't needed for current functionality.
+Recommend holding SSDT-USB-MAP unless a specific device requires direct UHCI access.
+
+### Files Modified
+- `/Volumes/EFI/EFI/OC/Kexts/USB-Map.kext/Contents/Info.plist` (v1.1)
+- Backup: `USB-Map.kext.session21-backup/`
+
+### Commit
+- `0d0703802` on `macos-next`
