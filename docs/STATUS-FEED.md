@@ -4,6 +4,41 @@
 
 ---
 
+### 🔴 Session 23 — USB-Map v1.1 Broke USB, Rolled Back to v1.0
+<sub>2026-04-16 · OC Pro 🦉</sub>
+
+**Attempted fix:** Updated USB-Map.kext IONameMatch from `EHC1/EHC2` → `EH01/EH02` to match ACPI renames, added explicit port definitions (PRT1/2/3, port-count=3).
+
+**Result:** **Total USB failure.** Only 1 EHCI port created (was 6), zero devices enumerated, controllers stuck in suspended power state.
+
+**Root cause:** On Tahoe (Darwin 25.x), `AppleUSBHostMergeProperties` with explicit port dictionaries **overrides** the EHCI driver's internal port creation mechanism. When merge properties match and provide port defs, the driver doesn't create `AppleUSBEHCIPort` children — it expects ACPI enumeration only.
+
+**Rollback:** Restored v1.0 kext (IONameMatch=EHC1/EHC2 = inert). ACPI fallback correctly enumerates all 6 ports and 3 USB devices. **USB-Map v1.0 is intentionally inert.**
+
+**Lesson:** For Tahoe EHCI, use SSDT `_UPC`/`_PLD` methods for port configuration — NOT merge kext port dictionaries.
+
+🔴 **Next stage:** SSDT-USB-WORK for `kUSBCompanion=false` + proper `_UPC`/`_PLD` port typing, without merge kext interference.
+
+---
+
+### 🟢 Session 23 (earlier) — USB-Map Kext v1.1: IONameMatch Fix + Port Mapping
+<sub>2026-04-16 · OC Pro 🦉</sub>
+
+**Critical bug found and fixed (later rolled back):** After Session 21's ACPI renames (`EHC1→EH01`, `EHC2→EH02`), the USB-Map.kext still had `IONameMatch = EHC1/EHC2`. All merge properties were **completely inert** — zero port mapping, no `kUSBCompanion` setting applied.
+
+**Fix applied (v1.1) — later rolled back:**
+- `IONameMatch` → `EH01`/`EH02` (matching renamed ACPI devices)
+- `port-count` → 3 per controller (was 1, matching actual hardware)
+- PRT2 + PRT3 added as external Type-A ports (type 0)
+- PRT1 stays internal (type 255) — hub, IR, BT
+- `kUSBCompanion=false` preserved (Tahoe EHCI handles all USB 1.x internally)
+
+**ACPI _STA verification:** EH01/EH02 = 0x0F (active), UHC1/UHC5 = 0x0B (present), UHC2-4/UHC6-7 = 0x09 (disabled, not needed).
+
+🟢 **EFI deployed, APFS snapshot taken, reboot pending.** No SSDT needed — EHCI-with-TT handles all current devices.
+
+---
+
 ### 🟢 Session 23 — USB-Map Kext v1.1: IONameMatch Fix + Port Mapping
 <sub>2026-04-16 · OC Pro 🦉</sub>
 

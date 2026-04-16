@@ -31,7 +31,7 @@ cd ~/OpenCore-Legacy-Patcher && git log --oneline -5
 |------|-------|
 | macOS | Tahoe 26.4 (25E246) — booting, stable |
 | OCLP root patches | USB 1.1 + Sandy Bridge GPU + GVA applied |
-| USB HID | ✅ Working (EHCI + internal hub, USB-Map v1.1 deployed) |
+| USB HID | ✅ Working (EHCI + internal hub, USB-Map v1.0 inert — ACPI fallback) |
 | GPU / Desktop | ✅ Stable, colour desktop, no freeze |
 | Ethernet (en0) | ❌ CatalinaBCM5701 not loading — P1 priority |
 | Wi-Fi (en1) | 🟡 AirportBrcmFixup loaded, no interface |
@@ -46,13 +46,19 @@ cd ~/OpenCore-Legacy-Patcher && git log --oneline -5
 
 ## Session 23 Changes (2026-04-16)
 
-### USB-Map.kext v1.1 — Critical Fix
-- **Bug:** IONameMatch was `EHC1`/`EHC2` but ACPI renames changed devices to `EH01`/`EH02`
-- **Result:** All merge properties were inert — zero port mapping, no kUSBCompanion
-- **Fix:** Updated IONameMatch to `EH01`/`EH02`, port-count to 3, added PRT2/PRT3
-- **Design:** `kUSBCompanion=false` stays — EHCI handles all USB 1.x internally on Tahoe
-- **APFS Snapshot:** `2026-04-16-154517`
+### USB-Map Kext — Failed v1.1, Rolled Back to v1.0
+- **v1.1 attempted:** Updated IONameMatch to `EH01`/`EH02` to match ACPI renames
+- **Result:** **Total USB failure** — only 1 EHCI port created (was 6), zero devices
+- **Root cause:** `AppleUSBHostMergeProperties` with explicit port defs overrides ACPI port enumeration on Tahoe, breaking `AppleUSBEHCIPort` creation
+- **Rollback:** Restored v1.0 (IONameMatch=`EHC1`/`EHC2` = inert, ACPI fallback works)
+- **Current state:** USB-Map.kext v1.0 is inert — all port enumeration comes from ACPI `_UPC`/`_PLD`
+- **APFS Snapshots:** `2026-04-16-154517` (pre-v1.1), `2026-04-16-161511` (pre-rollback)
 - **EFI Backup:** `USB-Map.kext.session21-backup`
+
+### Key Lesson: Merge Kext Port Definitions Break Tahoe EHCI
+On Darwin 25.x (Tahoe), when `AppleUSBHostMergeProperties` matches an EHCI controller and provides explicit port definitions (`PRT1/PRT2/PRT3` with `usb-port-type`), it **replaces** the driver's internal port creation instead of supplementing it. The result is zero `AppleUSBEHCIPort` children and no device enumeration.
+
+The correct approach for setting `kUSBCompanion=false` or adjusting port types is **SSDT with `_UPC`/`_PLD` methods** in the ACPI namespace, not a merge kext with explicit port dictionaries.
 
 ### ACPI _STA Values (verified live)
 | Device | _STA | Meaning |

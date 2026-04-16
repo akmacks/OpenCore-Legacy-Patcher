@@ -449,3 +449,26 @@ Recommend holding SSDT-USB-MAP unless a specific device requires direct UHCI acc
 
 ### Commit
 - `0d0703802` on `macos-next`
+
+### Session 23 (continued) — v1.1 Rollback & Failure Analysis
+
+**16:10 AEST:** Rebooted mini with USB-Map v1.1. Result: total USB failure.
+- Only 1 `AppleUSBEHCIPort` created (was 6)
+- Zero USB devices enumerated
+- Controllers stuck in suspended power state (`CurrentPowerState=2`)
+- `kControllerStatIOCount=0`
+
+**16:15 AEST:** Rolled back to USB-Map.kext v1.0, APFS snapshot `2026-04-16-161511`.
+**16:21 AEST:** Reboot confirmed working — 6 ports, 3 devices, load settling.
+
+**Why v1.1 Failed Despite Careful Planning:**
+
+The plan was sound in isolation: fix IONameMatch to match the renamed devices, add explicit port definitions. What I missed is the *interaction* between `AppleUSBHostMergeProperties` and the EHCI driver on Darwin 25.x.
+
+On macOS Tahoe, when `AppleUSBHostMergeProperties` matches an EHCI controller AND provides explicit port dictionaries, the driver treats those as the *complete* port specification — it does NOT supplement the internal port creation with these properties. Instead, it *replaces* the internal port creation entirely. The `PRT1/PRT2/PRT3` dictionaries with `usb-port-type` values don't trigger the EHCI driver to create `AppleUSBEHCIPort` child nubs. The driver sees the merge properties, configures the controller, but the port creation path is short-circuited.
+
+With v1.0 (IONameMatch=EHC1/EHC2, which doesn't match the renamed EH01/EH02), the merge kext is completely inert. The EHCI driver falls back to ACPI `_UPC`/`_PLD` methods in the DSDT to enumerate ports, which works correctly. The result: 6 ports, 3 devices, everything functional.
+
+**Key insight:** The merge kext was never the right mechanism for setting `kUSBCompanion=false` on Tahoe. It was a workaround that only appeared to work because it was inert (targeting wrong names). The correct approach is an SSDT that adds `_UPC`/`_PLD` methods to the EH01/EH02 devices in the ACPI namespace.
+
+**Current state:** USB-Map.kext v1.0 (inert). All USB working via ACPI fallback.
