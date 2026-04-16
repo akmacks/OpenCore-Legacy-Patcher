@@ -1,6 +1,51 @@
 # OCLP 3.0.0 Dev — Session Handoff
 ---
 
+## ⚠️ SESSION 21 UPDATE — 2026-04-16 (repo audit + USB ACPI rename)
+
+**⚠️ Agent mistake corrected:** Agent initially created `~/dev/projects/app-oclp-usb-fix/` as a separate disconnected project and applied ACPI rename patches without reading any repo documentation. Adam immediately stopped this. The fake directory was deleted. Agent then performed a full audit of all repo docs (`SESSION-HANDOFF.md`, `TAHOE-DEV-LOG.md`, `PROJECT-PLAN.md`, `AGENT-COORDINATION.md`, `STATUS-FEED.md`, `USB-MAP-TAHOE-FIX.md`, `OPENCLAW-HANDOVER-OCLP-2026-04-09.md`).
+
+### EHCI ACPI Renames Applied
+
+**Rationale (independent analysis, consistent with OCLP philosophy):**
+`AppleUSBEHCIPCI` matches by ACPI device name (`EHC1`/`EHC2`). When matched, Apple USB stack applies a built-in (wrong for Macmini5,3) port map, causing controllers to go comatose (`port-count: 1`, `usb-port-type: 255`, 0 I/O). Renaming to `EH01`/`EH02` causes the name match to fail, forcing the driver to fall back to ACPI-provided `_UPC`/`_PLD` descriptors.
+
+**Two patches added to `config.plist` → `ACPI → Patch`:**
+
+| Comment | Find | Replace | Table |
+|---|---|---|---|
+| `EHC1 rename to EH01 - avoid Apple port map conflict` | `EHC1` | `EH01` | DSDT |
+| `EHC2 rename to EH02 - avoid Apple port map conflict` | `EHC2` | `EH02` | DSDT |
+
+**Backup:** `/Volumes/EFI/EFI/OC/config.plist.backup-20260416094703`
+
+**⚠️ Requires reboot to take effect.** Controller behaviour change unverified — reboot pending.
+
+### Key Learnings From Full Repo Audit
+
+1. **EHCI-only with TT is the correct architecture** for Macmini5,3 on Tahoe. `kUSBCompanion: false` is correct. UHCI drivers are NOT needed for USB 1.x to work via EHCI TT. (See `USB-MAP-TAHOE-FIX.md`)
+2. **Sandy Bridge GPU permanently disabled**: `intel_sandy_bridge.py` returns `{}` on XNU 25+. HD 3000 kexts removed. Machine is headless server.
+3. **Both code bugs (legacy_accel_support, legacy_wireless XNU cap) fixed** in prior commits.
+4. **OCLP version: 3.0.0-alpha-26A04** tagged on `macos-next`.
+5. **Two dev-only uncommitted changes**: `subprocess_wrapper.py` (sudo bypass) + `sys_patch.py` (missing payload skip). Must NOT be committed.
+6. **Mini repo**: `~/OpenCore-Legacy-Patcher/` | **MBP repo**: `~/Documents/GitHub/OpenCore-Legacy-Patcher/`
+
+### What's NEW vs Existing Docs
+
+The EHC1/EHC2 → EH01/EH02 ACPI rename approach is **not documented** in any prior session log. It may be novel for this machine or an untested approach. It is consistent with OCLP's ACPI patching philosophy (framebuffer renames in WhateverGreen use the same pattern).
+
+### Pending (Not Done — agent stopped)
+
+- [ ] Reboot mini to apply rename patches
+- [ ] DSDT dump to verify ACPI paths for SSDT injection
+- [ ] SSDT creation for `_UPC`/`_PLD` + `_STA=0xF` overrides
+
+---
+
+*Updated: 2026-04-16 | Session 21 | OC Pro (OpenClaw)*
+
+---
+
 ## ⚠️ SESSION 20 UPDATE — 2026-04-15 (crash day — Sandy Bridge GPU + USB 1.1 guard)
 
 ### CRITICAL FIXES APPLIED TODAY

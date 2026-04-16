@@ -116,8 +116,7 @@ Just needs a physical test — pair a device and verify.
 |---|---|---|
 | Boot | ✅ Stable | OpenCore, snapshot XID 2415851 |
 | Tunnel | ✅ Up | 192.168.2.1↔192.168.2.2, reverse SSH :2222 |
-| USB 1.0/1.1 direct | ✅ Working | EHCI TT non-companion mode |
-| USB 2.0 via hub | ✅ Working | EHC1 internal hub enumerated |
+| USB (via hub) | ✅ Working | USB-Map-Tahoe format, EHC1/EHC2 ACPI renames applied (EH01/EH02) |
 | Keyboard/Mouse | ✅ Working | Via USB hub |
 | GPU (HD 3000) | ✅ Patched | kexts injected |
 | WhateverGreen | ✅ Clean | Headless framebuffer removed from EFI |
@@ -125,7 +124,7 @@ Just needs a physical test — pair a device and verify.
 | Ethernet BCM57765 | 🔴 Dead | Kext loaded, device not coming up — next target |
 | Wi-Fi BCM4331 | ⚠️ Unknown | Root patch applied, not verified |
 | Audio ALC892 | ⚠️ Unknown | Fallback kext, not verified |
-| OCLP repo (MBP) | ✅ Current | macos-next, 26A03 tagged |
+| OCLP repo (MBP) | ✅ Current | macos-next, 26A04 — Session 21 docs written |
 | OCLP repo (mini) | ⚠️ Needs sync | rsync pending after session close |
 
 ## PRIORITY WORK QUEUE
