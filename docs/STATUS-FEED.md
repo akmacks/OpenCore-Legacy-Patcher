@@ -4,6 +4,19 @@
 
 ---
 
+### 🔴 Session 22 — Stage 1 Verified: EHC Renames Worked (Reboot Success)
+<sub>2026-04-16 · OC Pro 🦉</sub>
+
+**What happened:** Verified the results of the EHC1/EHC2 $\rightarrow$ EH01/EH02 ACPI renames. **Success:** The controllers are no longer comatose. `AppleUSBEHCIPort` instances jumped from 0 to 6, and `AppleUSBHub` is now loaded.
+
+**Analysis:** The rename successfully broke the match with Apple's built-in incorrect port map, forcing the driver to fall back to ACPI enumeration. This restored basic USB "life" to the controllers.
+
+**Next Step:** Moving to Stage 2 — Injecting a dedicated SSDT for precise `_UPC`/`_PLD` port mapping and enabling the disabled UHCI controllers via `_STA=0xF` to ensure full hardware compatibility.
+
+🔴 **Pending:** DSDT dump $\rightarrow$ SSDT-USB-MAP generation $\rightarrow$ Final verification.
+
+---
+
 ### 🔴 Session 21 — Repo Audit + USB ACPI Renames Applied (Reboot Pending)
 <sub>2026-04-16 · OC Pro 🦉</sub>
 
