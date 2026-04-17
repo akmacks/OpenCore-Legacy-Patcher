@@ -14,7 +14,7 @@ class Constants:
     def __init__(self) -> None:
         # Patcher Versioning
         self.patcher_version:                 str = "3.0.0"  # OpenCore-Legacy-Patcher
-        self.patcher_support_pkg_version:     str = "1.9.5"  # PatcherSupportPkg
+        self.patcher_support_pkg_version:     str = "1.9.6"  # PatcherSupportPkg
         self.copyright_date:                  str = "Copyright © 2020-2025 Dortania"
         self.patcher_name:                    str = "OpenCore Legacy Patcher"
 
@@ -39,7 +39,7 @@ class Constants:
         self.airportbcrmfixup_version:   str = "2.1.9"  #      AirPortBrcmFixup
         self.nvmefix_version:            str = "1.1.2"  #      NVMeFix
         self.applealc_version:           str = "1.6.3"  #      AppleALC
-        self.restrictevents_version:     str = "1.1.5"  #      RestrictEvents
+        self.restrictevents_version:     str = "1.1.7"  #      RestrictEvents
         self.featureunlock_version:      str = "1.1.7"  #      FeatureUnlock
         self.debugenhancer_version:      str = "1.1.0"  #      DebugEnhancer
         self.cpufriend_version:          str = "1.2.9"  #      CPUFriend
