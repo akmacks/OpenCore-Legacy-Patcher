@@ -4,6 +4,23 @@
 
 ---
 
+### 🟡 Session 27 — UHCI Driver Fix Deployed, Awaiting Reboot
+<sub>2026-04-17 · OC Pro 🦉</sub>
+
+**Root cause found:** `AppleUSBUHCIPCI` driver expects class-code `0x0C030000`, hardware presents `0x00030C00`. Mismatch prevents binding on Tahoe.
+
+**Fix applied via OC Mini subagent:**
+- DeviceProperties injection for UHC1@1D and UHC5@1A
+- class-code spoofed to `0x00030C00` (base64: `AAADAA==`)
+- Critical: enabled `UEFI.ProtocolOverrides.DeviceProperties` (was `false`)
+- Backup: `config.plist.backup.20260417-210025`
+
+**TermEcho Protocol TECHO-001 established:** All sudo via SSH/subagent must funnel through TermEcho for human approval. OC Pro + Mini compliance required.
+
+⏳ **Pending:** Reboot Mac Mini → verify `AppleUSBUHCIPCI` instances > 0.
+
+---
+
 ### 🔴 Session 23 — USB-Map v1.1 Broke USB, Rolled Back to v1.0
 <sub>2026-04-16 · OC Pro 🦉</sub>
 

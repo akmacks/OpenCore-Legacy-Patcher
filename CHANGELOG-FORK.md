@@ -1,5 +1,147 @@
 # OpenCore Legacy Patcher changelog
 
+<<<<<<< HEAD
+## 3.0.0-alpha (26A04) — 2026-04-15 [Macmini5,3 Tahoe Development Branch]
+
+> **Development fork** by @akmacks. Branch: `macos-next`.
+> Target hardware: Macmini5,3 (Sandy Bridge CPU, headless, BCM4331/BCM57765/BCM2046/ALC892).
+> Target OS: macOS Tahoe 26.4 (XNU 25). **Not for general use.**
+
+### Critical Fixes
+- **Sandy Bridge GPU patchset blocked on Tahoe 26.x** ← *primary fix this build*
+  - `AppleIntelHD3000Graphics.kext`, `AppleIntelSNBGraphicsFB.kext` and all HD 3000 bundles
+    cause kernel panics on Darwin 25+ (Tahoe 26.x)
+  - Root cause: IOSurface/Metal ABI changed in Darwin 25; `IOGen575Shared::new_iosurface_texture`
+    null-derefs on OSMetaClass vtable when `mediaanalysisd` requests a GPU texture on boot
+  - `intel_sandy_bridge.py`: added Tahoe ceiling — `patches()` returns `{}` on Darwin 25+
+  - Sandy Bridge kexts manually removed from Macmini5,3 system volume via TDM; KC rebuilt
+  - Macmini5,3 runs headless without GPU acceleration — confirmed stable
+  - See `docs/SANDY-BRIDGE-TAHOE-CRASH.md`
+
+- **USB 1.1 patchset blocked on Tahoe 26.x** ← *critical safety guard*
+  - `IOUSBHostFamily.kext` from Monterey 12.6.2 is ABI-incompatible with Darwin 25 kernel
+  - Accidental application on 2026-04-15 destroyed USB + Thunderbolt bridge; recovery took ~8 hours
+  - `usb11.py`: `_base_patches()` and `_extended_patches()` both return `{}` on Darwin 25+
+  - Tahoe's native `IOUSBHostFamily` supports EHCI/TT without UHCI companions — no patch needed
+
+### Fixed
+- **USB-Map.kext EFI: power keys moved to EHC personalities**
+  - `kUSBWakePowerSupply` / `kUSBSleepPowerSupply` / port current limits moved from
+    `AppleUSBHostResources` personality (not matched on Tahoe) into `EHC1` and `EHC2` personalities
+  - `AppleUSBHostResources` personality removed entirely (caused null-deref risk on Tahoe)
+  - Confirmed via `ioreg`: both EHC1 and EHC2 show `kUSBWakePowerSupply = 4100` live
+
+### EFI Changes
+- Boot args: added `-igfxvesa` — forces VESA/software rendering, belt-and-suspenders GPU disable
+
+### Documentation
+- `docs/SANDY-BRIDGE-TAHOE-CRASH.md` — new: full panic analysis, root cause, fix procedure
+- `SESSION-HANDOFF.md` — Session 20 close entry
+- `TAHOE-DEV-LOG.md` — Session 20 added
+- `docs/AGENT-COORDINATION.md` — current state updated
+
+### Hardware Status (Macmini5,3 as of 26A04)
+
+| Component | Status |
+|---|---|
+| Boot (Sandy Bridge CPU, OpenCore) | ✅ Stable |
+| Intel HD 3000 GPU | 🚫 Disabled (headless — crashes Tahoe 26.4) |
+| USB power (EHC1 + EHC2) | ✅ Power keys confirmed in IOKit tree |
+| USB 1.0/1.1 direct port | ✅ Working |
+| USB 2.0 via hub | ✅ Working |
+| Wireless keyboard/mouse | ✅ Working |
+| Thunderbolt Bridge (tunnel) | ✅ Stable |
+| Wi-Fi (BCM4331) | ⚠️ Not yet verified post-patch |
+| Audio (ALC892) | ⚠️ Fallback kext — not verified |
+| Ethernet (BCM57765) | 🔴 Kext loaded, device not coming up — next target |
+
+---
+
+## 3.0.0-alpha (26A03) — 2026-04-13 [Macmini5,3 Tahoe Development Branch]
+
+> **Development fork** by @akmacks. Branch: `macos-next`.
+> Target hardware: Macmini5,3 (Sandy Bridge, Intel HD 3000, BCM4331/BCM57765/BCM2046/ALC892).
+> Target OS: macOS Tahoe 26.x (XNU 25). **Not for general use.**
+
+### Fixed
+- **USB-Map.kext key names updated for Tahoe IOUSBHostFamily 1.2 API** ← *primary fix this build*
+  - Old keys `UsbConnector` / `port` replaced with `usb-port-type` / `usb-port-number`
+  - Tahoe EHCI 1.2 driver silently created zero port objects with old keys → controllers
+    entered D3 suspend → VBUS (5V) cut to all USB ports → no power on any port
+  - Fix: deploy `USB-Map-Tahoe.kext` format to `EFI/OC/Kexts/USB-Map.kext`
+  - Result: USB 1.0/1.1 direct and USB 2.0 hub both confirmed working on Macmini5,3
+  - See `docs/USB-MAP-TAHOE-FIX.md` for full diagnosis, fix, and upstream PR notes
+- **WhateverGreen headless framebuffer reverted** (ig-platform-id 0x10030000 removed from EFI)
+  - Was causing WindowServer SIGABRT crash loop (consecutiveCrashCount=5) on every boot
+  - Session 18 regression — reverted in Session 19
+
+### Infrastructure / Bridge
+- Mini LaunchAgent set cleaned up (Session 19 TDM repair):
+  - `local.nat-persist.plist` → `.disabled` on mini (was root cause of 3-day tunnel breakage)
+  - `local.bridge-ip.plist` → `.disabled` on MBP (was overwriting gateway IP every 20s)
+  - `/etc/pf.anchors/bridge-restore` on mini replaced with client-only passthrough
+- `tunnel-pro.sh` v1.0.7-beta: replaced `system_profiler` UUID check with `ioreg`, replaced
+  `ipconfig getifaddr bridge0` with `ifconfig bridge0 | awk '/inet /{print $2}'` (Tahoe fixes)
+- Thunderbolt bridge fully stable post-repair: 192.168.2.1 (MBP) ↔ 192.168.2.2 (mini)
+
+### Documentation
+- `docs/USB-MAP-TAHOE-FIX.md` — new: full technical writeup, diagnostic commands, upstream PR draft
+- `SESSION-HANDOFF.md` — Session 19 close entry
+- `TAHOE-DEV-LOG.md` — Sessions 17–19 added
+- `docs/STATUS-FEED.md` — Session 19 status appended
+- `docs/AGENT-COORDINATION.md` — current state updated
+
+### Hardware Status (Macmini5,3 as of 26A03)
+
+| Component | Status |
+|---|---|
+| Boot (Sandy Bridge CPU, OpenCore) | ✅ Stable |
+| Intel HD 3000 GPU (kexts patched) | ✅ Working |
+| USB 1.0/1.1 direct port | ✅ Working (EHCI TT, non-companion mode) |
+| USB 2.0 via hub | ✅ Working |
+| Wireless keyboard/mouse | ✅ Working |
+| Thunderbolt Bridge (tunnel) | ✅ Stable |
+| Wi-Fi (BCM4331) | ⚠️ Not yet verified post-patch |
+| Audio (ALC892) | ⚠️ Fallback kext — not verified |
+| Ethernet (BCM57765) | 🔴 Kext loaded, device not coming up — next target |
+
+---
+
+## 3.0.0-alpha (26A02) — 2026-04-08 [Macmini5,3 Tahoe Development Branch]
+
+> **Development fork** by @akmacks. Branch: `macos-next`.
+> Target hardware: Macmini5,3 (Sandy Bridge, Intel HD 3000, BCM4331/BCM5722/BCM2046/ALC892).
+> Target OS: macOS Tahoe 26.x (XNU 25). **Not for general use.**
+
+### Code Changes
+- Identified Bug 1: `legacy_accel_support` list in `constants.py` missing `os_data.tahoe` — blocks all Sandy Bridge GPU patches on XNU 25 *(fix pending)*
+- Identified Bug 2: `legacy_wireless.py` `_extended_patch()` constructs key `"12.7.2-25"` — no such payload exists in `Universal-Binaries.dmg` *(fix pending)*
+- BCM5722 Ethernet: Find/Replace binary patch added to EFI `config.plist` *(unverified on 26.4)*
+- `detect.py`: `_max_os` already set to `os_data.tahoe.value` ✅ (no change needed)
+
+### Infrastructure / Forensic
+- KDK `KDK_26.4_25E246.pkg` (1.1 GB) pre-downloaded by `gui_cache_os_update.py` — full forensic analysis at `docs/KDK-FORENSIC.md`
+- MetallibSupportPkg: Dortania manifest has **zero** Tahoe (25-prefix) entries — will fall back to Sequoia 15.4 metallibs
+- KdkSupportPkg: Dortania manifest fully up-to-date (163 Tahoe entries, latest `25F5042g`)
+- `app_macOS-Intel_BridgeRestore/` removed from git tracking (separate project)
+
+### Documentation
+- `docs/PROJECT-PLAN.md` — master plan with Ethernet priority, 8-phase breakdown, risk register
+- `docs/TAHOE-DEV-LOG.md` — Sessions 1–13 complete dev log
+- `docs/KDK-FORENSIC.md` — Apple KDK deep-dive (new)
+- `docs/forensic/MetallibSupportPkg/MANIFEST.md` — SHA256 manifest of 151 Sequoia metallibs
+- `docs/SESSION-HANDOFF.md` — updated for handover to OpenClaw
+
+---
+
+
+## 3.0.0
+- Restore support for FileVault 2 on macOS 26
+- Add USB mappings for macOS 26
+- Adopt Liquid Glass-conformant app icon
+- Increment Binaries:
+  - OpenCorePkg 1.0.5 - rolling (f03819e)
+=======
 ## 2.5.0
 - Disable repatching a dirty root volume
   - Prevents issues if existing patches are partially overwritten
@@ -7,6 +149,7 @@
 - Add slimmed down patchset for Modern Wireless for macOS Sequoia
 - Increment binaries:
   - PatcherSupportPkg 1.9.6 - release
+>>>>>>> main
 
 ## 2.4.1
 - Switch installer source to AppleDB
