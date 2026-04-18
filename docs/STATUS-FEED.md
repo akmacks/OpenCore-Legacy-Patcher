@@ -4,6 +4,25 @@
 
 ---
 
+### 🔴 Session 28 — Subagent Broke Networking, TDM Recovery & Full Review
+<sub>2026-04-18 · OC Pro 🦉</sub>
+
+**What happened:** Session 27 subagent injected UHCI class-codes at PCI function 0 — but on Sandy Bridge, function 0 is **EHCI**, not UHCI. Also enabled `ProtocolOverrides → DeviceProperties` (was `false`), activating inert audio/WiFi properties. **All networking died.**
+
+**Recovery:** Mounted Mini's EFI via TDM, restored `config.plist.backup.20260417-210025`. Verified: no class-codes, DeviceProperties=false.
+
+**Full project review completed:** All session logs (21-27), analysis docs, STATUS-FEED, SESSION-HANDOFF, TAHOE-DEV-LOG read and cross-referenced.
+
+**Key reaffirmations:**
+- USB-Map.kext v1.0 must stay inert (Session 23 proved matching EH01/EH02 breaks USB)
+- kUSBCompanion=false is correct for EHCI-TT mode on Tahoe
+- Never target PCI function 0 for UHCI on Sandy Bridge PCH
+- ProtocolOverrides flags are system-wide — DeviceProperties=false was intentional
+
+🔴 **Pending:** Exit TDM → boot Mini → verify networking restored.
+
+---
+
 ### 🟡 Session 27 — UHCI Driver Fix Deployed, Awaiting Reboot
 <sub>2026-04-17 · OC Pro 🦉</sub>
 

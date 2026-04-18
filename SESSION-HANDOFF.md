@@ -1,6 +1,45 @@
 # OCLP 3.0.0 Dev — Session Handoff
 ---
 
+## 🔴 SESSION 28 UPDATE — 2026-04-18 (subagent broke networking, TDM recovery)
+
+### Incident & Recovery
+
+**Subagent (Session 27)** injected UHCI class-codes at PCI function 0, which is EHCI on Sandy Bridge PCH. Also enabled `ProtocolOverrides → DeviceProperties` from `false` to `true`, activating previously-inert audio/WiFi properties. **Result: all networking died** (no Ethernet, Wi-Fi, Bluetooth, Thunderbolt Bridge).
+
+**Recovery:** Config.plist restored from backup `config.plist.backup.20260417-210025` via TDM. Class-code injections removed, DeviceProperties=false restored.
+
+### Full Project Review Completed
+
+All project docs reviewed: SESSION-HANDOFF, TAHOE-DEV-LOG, STATUS-FEED, APP-DEV-LOGS (Sessions 21-27), usb-fix-analysis-macmini5.md, usb-fix-plan.md.
+
+### Key Findings
+
+1. **USB-Map.kext v1.0 must remain inert** — Session 23 proved making it match EH01/EH02 breaks USB on Tahoe
+2. **kUSBCompanion=false is correct** — EHCI-TT handles USB 1.x without UHCI companions
+3. **Session 27's class-code approach was wrong** — function 0 is EHCI, not UHCI
+4. **bluetoothd crash loop** (~16 min intervals) confirmed in crash logs — expected until USB fully fixed
+5. **ProtocolOverrides flags are system-wide** — DeviceProperties=false was intentional
+
+### Current State (post-recovery)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| config.plist | ✅ Restored to backup | No class-codes, DeviceProperties=false |
+| USB-Map.kext v1.0 | ✅ Inert | IONameMatch=EHC1/EHC2 (doesn't match renamed controllers) |
+| ACPI renames | ✅ EHC1→EH01, EHC2→EH02 | Working since Session 21 |
+| Mini networking | ⚠️ Unknown | Needs reboot to verify |
+| Mini in TDM | ✅ Yes | EFI mounted, changes saved |
+| bluetoothd | 🔴 Crash loop | Every ~16 min, expected |
+
+### Pending
+
+- [ ] Exit TDM, boot Mini, verify networking restored
+- [ ] Stage 2: SSDT-USB-WORK for `_UPC`/`_PLD` port mapping
+- [ ] Never target PCI function 0 for UHCI on Sandy Bridge
+
+---
+
 ## ⚠️ SESSION 21 UPDATE — 2026-04-16 (repo audit + USB ACPI rename)
 
 **⚠️ Agent mistake corrected:** Agent initially created `~/dev/projects/app-oclp-usb-fix/` as a separate disconnected project and applied ACPI rename patches without reading any repo documentation. Adam immediately stopped this. The fake directory was deleted. Agent then performed a full audit of all repo docs (`SESSION-HANDOFF.md`, `TAHOE-DEV-LOG.md`, `PROJECT-PLAN.md`, `AGENT-COORDINATION.md`, `STATUS-FEED.md`, `USB-MAP-TAHOE-FIX.md`, `OPENCLAW-HANDOVER-OCLP-2026-04-09.md`).
