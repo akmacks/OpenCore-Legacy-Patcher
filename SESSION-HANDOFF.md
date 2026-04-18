@@ -1,6 +1,39 @@
 # OCLP 3.0.0 Dev — Session Handoff
 ---
 
+## 🔴 SESSION 29 UPDATE — 2026-04-18 (EH02 sleep syndrome discovered, Unified USB Fix proposed)
+
+### New Discovery: EH02 Sleep Syndrome
+Adam discovered that 2 of the 4 rear USB ports on the Mac Mini 5,3 were completely dead. Physical test confirmed:
+- **Ports closest to Thunderbolt/MiniDP**: Working (EH01-backed)
+- **Ports farthest from Thunderbolt/MiniDP**: Dead (EH02-backed, controller suspended)
+- Seagate 750GB + Belkin hub plugged into a "dead" port → **disk appeared as disk1** → EH02 hardware is alive
+- Belkin hub collapsed (hub descriptor incompatibility with Tahoe) → downstream devices invisible
+
+### Proposed Fix: Unified USB Fix (3-Part)
+Pending Adam's approval to deploy:
+1. **EH02 Power-Lock** — DeviceProperties injection to prevent EH02 suspension
+2. **USB-Map IONameMatch fix** — Update to target EH01/EH02 (not EHC1/EHC2)
+3. **UHCI Binding** — Inject class-codes at correct PCI functions (1-3, NOT 0)
+
+### Risk: Hub Collapse
+Even with EH02 active, the Belkin USB 2.0 hub may fail to enumerate on Tahoe. If fix fails, replace Belkin with a powered/self-powered hub.
+
+### Rollback: Full backup created before any deployment. TDM recovery if networking dies.
+
+
+### Current State (pre-fix)
+| Component | Status |
+|-----------|--------|
+| Thunderbolt Bridge | ✅ Active |
+| EH01 | ✅ Active — Internal Hub + IR + 1 Lexar |
+| EH02 | 🟡 Waking — Seagate disk visible |
+| Belkin Hub | ❌ Collapsed — downstream devices invisible |
+| UHCI | ❌ 0 instances |
+
+
+---
+
 ## 🔴 SESSION 28 UPDATE — 2026-04-18 (subagent broke networking, TDM recovery)
 
 ### Incident & Recovery

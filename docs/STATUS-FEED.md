@@ -4,6 +4,22 @@
 
 ---
 
+### 🔴 Session 29 — EH02 Sleep Syndrome Discovered, Unified USB Fix Proposed
+<sub>2026-04-18 · OC Pro 🦉</sub>
+
+**Discovery:** Adam found 2 of 4 rear USB ports completely dead — farthest from Thunderbolt/MiniDP. Physical test: Seagate 750GB + Belkin hub into a "dead" port → disk appeared as `disk1` → **EH02 hardware is alive** but was being put to sleep by macOS Tahoe's aggressive USB power management.
+
+**Second issue:** Belkin hub collapsed on Tahoe — stricter USB stack rejected the hub's descriptors. All downstream devices (mouse, transceiver, 2 Lexar sticks) became invisible. Only the direct-attached Seagate was visible as disk1.
+
+**Proposed fix (3-part, pending approval):**
+1. **EH02 Power-Lock** — DeviceProperties injection to keep EH02 awake at all times
+2. **USB-Map IONameMatch** — Fix kext to target `EH01`/`EH02` (not old `EHC1`/`EHC2`)
+3. **UHCI Binding** — Inject class-codes at correct PCI functions (1-3, never 0) to enable Bluetooth without breaking networking
+
+**Risk:** Hub collapse may persist if Belkin is incompatible with Tahoe. Fix: replace with powered/self-powered hub. Full rollback plan in `docs/APP-DEV-LOGS/2026-04-18-SESSION-29.md`.
+
+---
+
 ### 🔴 Session 28 — Subagent Broke Networking, TDM Recovery & Full Review
 <sub>2026-04-18 · OC Pro 🦉</sub>
 
