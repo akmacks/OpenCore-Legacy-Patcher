@@ -28,14 +28,18 @@ All project docs reviewed: SESSION-HANDOFF, TAHOE-DEV-LOG, STATUS-FEED, APP-DEV-
 | config.plist | ✅ Restored to backup | No class-codes, DeviceProperties=false |
 | USB-Map.kext v1.0 | ✅ Inert | IONameMatch=EHC1/EHC2 (doesn't match renamed controllers) |
 | ACPI renames | ✅ EHC1→EH01, EHC2→EH02 | Working since Session 21 |
-| Mini networking | ⚠️ Unknown | Needs reboot to verify |
-| Mini in TDM | ✅ Yes | EFI mounted, changes saved |
-| bluetoothd | 🔴 Crash loop | Every ~16 min, expected |
+| Mini networking | ✅ Thunderbolt Bridge | 192.168.2.2, internet working |
+| Ethernet (BCM57765) | ❌ No kext | Pre-existing — no en0/en1 |
+| Wi-Fi (BCM4331) | ❌ No interface | Pre-existing |
+| Bluetooth HCI | ⚠️ Registered but unstable | system_profiler hangs, crash loop continues |
+| Mini in TDM | ✅ No — booted normally | Config rollback verified working |
 
 ### Pending
 
-- [ ] Exit TDM, boot Mini, verify networking restored
+- [x] Exit TDM, boot Mini, verify networking restored ✅
+- [x] Thunderbolt Bridge networking confirmed working
 - [ ] Stage 2: SSDT-USB-WORK for `_UPC`/`_PLD` port mapping
+- [ ] BCM57765 Ethernet driver (pre-existing, not Session 27)
 - [ ] Never target PCI function 0 for UHCI on Sandy Bridge
 
 ---

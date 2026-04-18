@@ -19,7 +19,7 @@
 - Never target PCI function 0 for UHCI on Sandy Bridge PCH
 - ProtocolOverrides flags are system-wide — DeviceProperties=false was intentional
 
-🔴 **Pending:** Exit TDM → boot Mini → verify networking restored.
+🔴 **Boot verified:** Thunderbolt Bridge working (192.168.2.2), internet reachable. Ethernet/Wi-Fi/bluetoothd issues are pre-existing.
 
 ---
 
