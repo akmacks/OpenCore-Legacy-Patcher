@@ -1,151 +1,192 @@
 # OCLP 3.0.0-alpha — Session Handoff
-## For: OpenClaw / Claude Code / Codex / next Claude session
-## Updated: 2026-04-16 16:00 AEST | Session 23 close
-## Branch: macos-next | Last commit: see git log
-## Full coordination: docs/AGENT-COORDINATION.md
-## Status feed: docs/STATUS-FEED.md
+
+For: OpenClaw / Claude Code / Codex / next Claude session
+
+Updated: 2026-05-03 15:55 AEST | Session 32 close
+
+Branch: macos-next | Last commit: see git log
+
+Full coordination: docs/AGENT-COORDINATION.md
+
+Status feed: docs/STATUS-FEED.md
 
 ---
 
 ## QUICK START FOR NEW AGENT
 
 ```bash
-# SSH to mini (from MBP, after tunnel-pro on mini)
-ssh -p 2222 akmacks@localhost
+# Boot mini normally (if not already booted)
+# Expected: Should complete boot with conservative AMFI settings
 
-# Or direct via TB bridge
-ssh akmacks@192.168.2.2
+# Once booted, connect via ONE of:
+ssh akmacks@100.86.233.5              # Tailscale
+ssh akmacks@192.168.2.2                # TB bridge
+ssh -p 2222 akmacks@localhost          # Reverse tunnel
+
+# Verify identity FIRST (mandatory)
+system_profiler SPHardwareDataType | grep "Hardware UUID"
+# Mini UUID: 575B0D7C-1560-502B-A87E-39C5E04C4891
 
 # Check system state
-uptime && ifconfig -l && kextstat | grep -iE "OHCI|UHCI|BCM|airport|bluetooth"
+nvram boot-args                        # should NOT show amfi_get_out_of_my_way
+kextstat | grep -iE "5701|BCM|ethernet"
+ifconfig en0 2>/dev/null || echo "en0 absent — expected before patching"
+```
 
-# OCLP repo on mini
-cd ~/OpenCore-Legacy-Patcher && git log --oneline -5
+---
+
+## ⚡ IMMEDIATE NEXT ACTION (Session 32 left off here)
+
+Mac mini was ejected from TDM with conservative boot-args applied (AMFI bypass removed). Next boot should complete successfully.
+
+**1. Boot the Mac mini normally**
+
+Expected outcomes:
+- ✅ Boot completes without hanging
+- ✅ Color desktop with GPU acceleration (Sandy Bridge patches intact from snapshot)
+- ✅ USB keyboard/mouse working
+- ❌ No Ethernet (BCM5722 kext not loaded — this is expected)
+
+**2. Establish SSH connection** (try methods in order listed above)
+
+**3. Mount root volume for patching:**
+
+```bash
+sudo mount -o nobrowse -t apfs /dev/disk2s4 /System/Volumes/Update/mnt1
+```
+
+**4. Run OCLP 3.0.0 patches from source:**
+
+```bash
+cd /Users/akmacks/Documents/GitHub/OpenCore-Legacy-Patcher
+sudo /usr/local/bin/python3.14 OpenCore-Patcher-GUI.command --patch_sys_vol --auto_patch 2>&1 | tee /tmp/oclp-session33-patch.log
+```
+
+**5. After successful patch → reboot and verify:**
+
+```bash
+kextstat | grep -i "5701"                # expect: AppleBCM5701Ethernet
+ifconfig en0                              # expect: MAC 3c:07:54:10:9e:a4
+networksetup -getinfo "Ethernet"         # expect: DHCP from router
+ping -c 3 -I en0 8.8.8.8                # expect: <50ms, 0% loss
 ```
 
 ---
 
 ## CURRENT STATE SNAPSHOT
 
-| Item | State |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| macOS Tahoe 26.4 (25E246) | ✅ Should boot | Conservative AMFI settings applied |
+| NVRAM boot-args | ✅ Fixed | REMOVED `amfi_get_out_of_my_way=0x7ff` (was causing panic) |
+| NVRAM CSR | ✅ Fixed | `csr-active-config=0x0A03` from Session 31 |
+| Ethernet (BCM5722/en0) | 🟡 Pending patch | Will load after OCLP root patches run |
+| GPU / Desktop | ✅ Working | Sandy Bridge patches in snapshot |
+| USB HID | ✅ Working | USB 1.1 patches applied |
+| SSH tunnel | ❓ Unknown | Depends on successful boot |
+| Tailscale | ❓ Unknown | Was 100.86.233.5 in Session 31 |
+| Audio (ALC892) | 🟡 Pending patch | modern_audio.py fix applied (10.13.6 path) |
+| Wi-Fi | ❓ Unknown | Not investigated |
+| OCLP 3.0.0 from source | ✅ Ready | PHT bypass established, wx available |
+| APFS snapshot | ✅ Clean | Booting from system update snapshot |
+
+---
+
+## KEY SESSION 32 CHANGES
+
+### OC config.plist (on EFI disk0s1)
+
+**CRITICAL CHANGE:**
+- **Removed** `amfi_get_out_of_my_way=0x7ff` from boot-args entirely
+- **Reason:** Was causing kernel panic/hang during boot on XNU 25
+- **New boot-args:** `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -igfxvesa`
+- **Backup:** `/Volumes/EFI/EFI/OC/config.plist.bak-before-conservative-boot`
+
+### New OCLP Patching Strategy (Two-Step Approach)
+
+**OLD (Failed):** Add AMFI bypass to boot-args → boot fails with panic
+
+**NEW (Correct):**
+1. Boot with NO AMFI bypass → system boots cleanly
+2. Add AMFI bypass ONLY during OCLP patch execution
+3. Result: Reliable boot + patches can be applied when needed
+
+### Project Session Manager Skill Created
+
+- **Version:** 1.0.0 Build 1
+- **Location (Claude):** `/mnt/skills/user/project-session-manager/SKILL.md`
+- **Location (Mac):** `~/dev/projects/skills/project-session-manager-SKILL.md`
+- **Purpose:** Automated session logging and AI agent coordination
+- **Status:** ✅ Active and operational
+
+---
+
+## CRITICAL ENVIRONMENT FACTS
+
+| Item | Value |
 |------|-------|
-| macOS | Tahoe 26.4 (25E246) — booting, stable |
-| OCLP root patches | USB 1.1 + Sandy Bridge GPU + GVA applied |
-| USB HID | ✅ Working (EHCI + internal hub, USB-Map v1.0 inert — ACPI fallback) |
-| GPU / Desktop | ✅ Stable, colour desktop, no freeze |
-| Ethernet (en0) | ❌ CatalinaBCM5701 not loading — P1 priority |
-| Wi-Fi (en1) | 🟡 AirportBrcmFixup loaded, no interface |
-| Bluetooth | 🟡 Kexts loaded, pairing untested |
-| Audio | ❓ Unverified |
-| SSH | ✅ Via tunnel port 2222 |
-| Internet | ✅ Via TB bridge, 26ms RTT |
-| Tailscale | ✅ Connected |
-| Git | macos-next, commits up to 5f4a738b8 |
+| Mini UUID | `575B0D7C-1560-502B-A87E-39C5E04C4891` |
+| Mini en0 MAC | `3c:07:54:10:9e:a4` (BCM5722 — not yet active) |
+| Mini en2 MAC | `82:0c:4d:eb:46:81` (TB bridge) |
+| OS disk | disk2s4 |
+| OC EFI disk | disk0s1 |
+| EFI backup (Session 32) | `/Volumes/EFI/EFI/OC/config.plist.bak-before-conservative-boot` |
+| EFI backup (Session 31) | `/Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452` |
+| python3.14 | `/usr/local/bin/python3.14` (wx present) |
+| KDK | `KDK_26.4_25E246.kdk` installed |
+| OCLP repo | `/Users/akmacks/Documents/GitHub/OpenCore-Legacy-Patcher/` |
+| Universal-Binaries.dmg | in OCLP repo `payloads/` |
 
 ---
 
-## Session 23 Changes (2026-04-16)
+## ROLLBACK PROCEDURES
 
-### USB-Map Kext — Failed v1.1, Rolled Back to v1.0
-- **v1.1 attempted:** Updated IONameMatch to `EH01`/`EH02` to match ACPI renames
-- **Result:** **Total USB failure** — only 1 EHCI port created (was 6), zero devices
-- **Root cause:** `AppleUSBHostMergeProperties` with explicit port defs overrides ACPI port enumeration on Tahoe, breaking `AppleUSBEHCIPort` creation
-- **Rollback:** Restored v1.0 (IONameMatch=`EHC1`/`EHC2` = inert, ACPI fallback works)
-- **Current state:** USB-Map.kext v1.0 is inert — all port enumeration comes from ACPI `_UPC`/`_PLD`
-- **APFS Snapshots:** `2026-04-16-154517` (pre-v1.1), `2026-04-16-161511` (pre-rollback)
-- **EFI Backup:** `USB-Map.kext.session21-backup`
+### If boot still fails after Session 32 fix
 
-### Key Lesson: Merge Kext Port Definitions Break Tahoe EHCI
-On Darwin 25.x (Tahoe), when `AppleUSBHostMergeProperties` matches an EHCI controller and provides explicit port definitions (`PRT1/PRT2/PRT3` with `usb-port-type`), it **replaces** the driver's internal port creation instead of supplementing it. The result is zero `AppleUSBEHCIPort` children and no device enumeration.
-
-The correct approach for setting `kUSBCompanion=false` or adjusting port types is **SSDT with `_UPC`/`_PLD` methods** in the ACPI namespace, not a merge kext with explicit port dictionaries.
-
-### ACPI _STA Values (verified live)
-| Device | _STA | Meaning |
-|--------|------|---------|
-| EH01 | 0x0F | Fully active |
-| EH02 | 0x0F | Fully active |
-| UHC1 | 0x0B | Present, no I/O decode |
-| UHC2-4 | 0x09 | Disabled |
-| UHC5 | 0x0B | Present, no I/O decode |
-| UHC6-7 | 0x09 | Disabled |
-
-## TOP PRIORITY: Ethernet Fix
-## TOP PRIORITY: Ethernet Fix
-
-CatalinaBCM5701Ethernet.kext is in EFI, matches device pci14e4,16b4,
-but is completely absent from kextstat. AMFI flag added but insufficient.
-
-**Diagnostic to run first:**
 ```bash
-log show --last boot 2>/dev/null | grep -iE "BCM5701|CatalinaBCM|kext.*deny|amfi.*deny" | head -20
+# Boot mini in TDM (hold T)
+# From MBP, mount EFI and restore Session 31 config:
+diskutil mount disk8s1
+cp /Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452 /Volumes/EFI/EFI/OC/config.plist
+diskutil unmount /Volumes/EFI
+# Eject mini, boot normally
 ```
 
-**Then check OC config ForceKextsToLoad:**
+### If patch run breaks boot
+
 ```bash
-grep -A3 "ForceKextsToLoad" /Volumes/EFI/EFI/OC/config.plist
+# From Recovery Terminal or working SSH session:
+sudo mount -o nobrowse -t apfs /dev/disk2s4 /System/Volumes/Update/mnt1
+sudo /usr/sbin/bless --mount /System/Volumes/Update/mnt1 --bootefi --last-sealed-snapshot
+sudo reboot
 ```
 
-See AGENT-COORDINATION.md for full P1 investigation steps.
+### If need to restore fully to Session 31 state
 
----
-
-## KEY FILES ON MINI
-
-| File | Purpose |
-|------|---------|
-| `~/run_patch_complete.py` | Full wx-stub patch runner |
-| `~/run_usb11_patch.py` | USB 1.1 only (copy with filter) |
-| `~/OpenCore-Legacy-Patcher/` | OCLP dev repo |
-| `/Volumes/EFI/EFI/OC/config.plist` | OC config (EFI must be mounted) |
-| `/Library/Developer/KDKs/KDK_26.4_25E246.kdk` | Kernel debug kit |
-
-Mount EFI: `sudo diskutil mount disk0s1`
-
----
-
-## KEY FILES IN REPO (MBP)
-
-| File | Purpose |
-|------|---------|
-| `docs/AGENT-COORDINATION.md` | Work queue + handoff protocol |
-| `docs/STATUS-FEED.md` | Append-only status log (RSS feed) |
-| `docs/SESSION-HANDOFF.md` | This file |
-| `docs/APP-DEV-LOGS/` | Per-session detailed logs |
-| `docs/TAHOE-DEV-LOG.md` | Full session history 1-13 |
-
----
-
-## CODE BUGS STATUS
-
-Both fixed in commit `7d28f4d` — do not re-apply:
-- Bug 1: `constants.py` — `legacy_accel_support` += tahoe ✅
-- Bug 2: `legacy_wireless.py` — XNU version cap at sequoia ✅
-
----
-
-## BOOT-ARGS (current in EFI)
-
-```
-keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic amfi_get_out_of_my_way=0x7ff
+```bash
+# From TDM, restore Session 31 EFI config (the one WITH amfi=0x7ff):
+cp /Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452 /Volumes/EFI/EFI/OC/config.plist
 ```
 
-Backup at: `/Volumes/EFI/EFI/OC/config.plist.bak`
+### Emergency: mini unreachable
+
+1. Physical keyboard → check desktop
+2. Frozen: hold power 10s, cold boot
+3. Boot loop: hold Option → select macOS volume directly (bypasses OC)
+4. TDM: hold T → Thunderbolt to MBP → repair EFI
 
 ---
 
-## SESSION HISTORY
+## RULES FOR ALL AGENTS
 
-| Session | Date | Agent | Key Work |
-|---------|------|-------|----------|
-| 1-3 | 2026-03 | Claude | OC EFI, GPU patch, USB HID fix |
-| 4-6 | 2026-03 | Claude | BCM5722 analysis, Bug 1 |
-| 7-9 | 2026-03 | Claude | Bug 2, audio fallback, TB bridge |
-| 10-12 | 2026-03/04 | Claude | Repo init, GitHub, forensic manifest |
-| 13 | 2026-04-08 | Claude | KDK forensic, version tag |
-| 14 (OC) | 2026-04-09 | OpenClaw | Bug 1+2 fix, root patches applied |
-| 15 | 2026-04-10 | Claude | Rollback (TDM + bless), SSH fix |
-| 16 | 2026-04-10 | Claude | USB 1.1 patch, AMFI fix, stable desktop |
-
----
-*Verify all state with live diagnostics — never assume from this doc alone.*
+- **Verify mini UUID before any command:** `575B0D7C-1560-502B-A87E-39C5E04C4891`
+- **Never run Ollama inference on the mini** — 2011 hardware freezes
+- **Never kill the Ollama process** — only kill rescue-bot/curl
+- **Never use scp** — use rsync (`rsync -e ssh`)
+- **Never increment version numbers** — Adam's decision only
+- **Never apply Sandy Bridge GPU patches intentionally** — came through incidentally, leave alone
+- **Never enable FileVault** on this system
+- `diskutil apfs revertSnapshot` **does not exist in Tahoe** — use `bless --last-sealed-snapshot`
+- `launchctl load/bootstrap` **broken for system daemons in Tahoe** — use `sudo /usr/sbin/sshd`
+- **PlistBuddy must NOT edit config.plist** — use Python plistlib only
+- **AMFI bypass should NOT be permanent in boot-args** — apply only during OCLP patching (Session 32 finding)

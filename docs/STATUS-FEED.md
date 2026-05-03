@@ -167,3 +167,26 @@ Also fixed: WhateverGreen headless framebuffer reverted (was crashing WindowServ
 📦 Tagged: **3.0.0-alpha (26A03)**
 
 <!-- REST OF FEED PRESERVED -->
+
+---
+
+### 🟡 Session 32 — Boot Hang Diagnosed, Conservative AMFI Strategy
+<sub>2026-05-03 · Claude 🤖</sub>
+
+**Problem:** Mac mini failed to boot after Session 31, showing crash notice screen then startup hang at ~1/3 progress bar (5+ minutes, no movement).
+
+**Root Cause:** Aggressive AMFI bypass (`amfi_get_out_of_my_way=0x7ff`) in OpenCore boot-args was causing kernel panic during XNU 25 boot sequence. Boot process couldn't complete with full AMFI bypass active from start.
+
+**Fix Applied:** Removed AMFI bypass from boot-args entirely. New strategy: boot cleanly first with conservative settings, add AMFI bypass only during OCLP patch execution (not permanently).
+
+**Session 32 Changes:**
+- OpenCore config.plist updated (AMFI removed from boot-args)
+- Backup created: `config.plist.bak-before-conservative-boot`
+- APFS snapshot verified clean (no corrupted patches)
+- Project Session Manager skill created (v1.0.0 Build 1) for automated logging
+
+**Status:** Mini ejected from TDM, ready for boot test. Expected: boot should complete, desktop should appear with GPU + USB working, Ethernet still absent (patches not yet applied).
+
+**Next:** Boot mini normally → establish SSH → mount root volume → run OCLP patches from source → verify BCM5722 Ethernet kext loads.
+
+Full details: `docs/APP-DEV-LOGS/2026-05-03-SESSION-32.md`
