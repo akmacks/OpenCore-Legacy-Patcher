@@ -220,3 +220,57 @@ rsync -avz -e "ssh -p 2222" akmacks@localhost:~/OpenCore-Legacy-Patcher/ \
 rsync -avz ~/Documents/Github/OpenCore-Legacy-Patcher/ \
   -e "ssh -p 2222" akmacks@localhost:~/OpenCore-Legacy-Patcher/
 ```
+
+---
+
+## CURRENT STATE — Session 33 close (2026-05-03 16:35 AEST)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| macOS Tahoe 26.4 (25E246) | 🟡 Boot pending | KC replaced — awaiting Session 34 boot confirm |
+| OpenCore EFI | ✅ Active | boot-args: `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -igfxvesa -v` |
+| Preboot KC | 🟡 Replaced | Stock March 20 KC copied from System volume; old KC backed up |
+| USB (via hub) | ✅ Working | USB-Map-Tahoe format (as of Session 19) |
+| Sandy Bridge GPU | ⛔ Not applied | Fatal on Tahoe — Macmini5,3 headless, not needed |
+| USB 1.1 patchset | ⛔ Not applied | ABI-incompatible with Tahoe — do not apply |
+| Ethernet BCM57765 | 🔴 Pending patch | OCLP root patch not yet run — Session 34 target |
+| Audio ALC892 | 🔴 Pending patch | OCLP root patch not yet run — Session 34 target |
+| Wi-Fi BCM4331 | ⚠️ Unknown | Root patch applied (Session 19), not re-verified |
+| SSH access | ❌ Down | Mini rebooting — tunnel not yet running |
+| AMFI in boot-args | ❌ Not present | Removed Session 32 (conservative); add only during patch run |
+| TDM disk | ✅ Ejected | Mini released from TDM, rebooting normally |
+
+**Critical environment fact:** MBP=Tahoe 26.5 (25F5068a), Mini=Tahoe 26.4 (25E246).  
+`kmutil` from MBP CANNOT build KC for mini — build mismatch. Use stock System volume KC.
+
+## PRIORITY WORK QUEUE — Session 34
+
+### 🔴 P0 — Confirm mini boots (Session 34 first step)
+Verbose boot active (`-v`). Check for KC load lines in boot output. If boot succeeds:
+1. Remove `-v` from OC boot-args
+2. Verify USB hub, desktop accessible, tunnel up
+3. Proceed to P1
+
+### 🔴 P1 — Run OCLP root patch (Ethernet + Audio)
+Prerequisites: mini booted, SSH accessible, amfi added back for patch run only.
+```bash
+# On MBP — SSH to mini
+ssh akmacks@192.168.2.2   # TB bridge, or
+ssh -p 2222 akmacks@localhost  # tunnel
+
+# On mini — run OCLP patch from source
+cd ~/OpenCore-Legacy-Patcher
+sudo python3.14 OpenCore-Patcher.py --gui  # or headless equivalent
+```
+**Do NOT apply:** Sandy Bridge GPU patchset, USB 1.1 (IOUSBHostFamily) patchset.
+
+### 🟡 P2 — Verify Wi-Fi BCM4331
+```bash
+airport -I
+kextstat | grep -i "80211\|brcm"
+```
+
+### 🟢 P3 — Remove -v from boot-args (after boot confirmed)
+```python
+# plistlib edit of /Volumes/EFI/EFI/OC/config.plist — remove -v token
+```

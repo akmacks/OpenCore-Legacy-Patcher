@@ -1,74 +1,73 @@
 # OCLP 3.0.0-alpha — Session Handoff
 
-For: OpenClaw / Claude Code / Codex / next Claude session
+## For: OpenClaw / Claude Code / Codex / next Claude session
 
-Updated: 2026-05-03 15:55 AEST | Session 32 close
+## Updated: 2026-05-03 16:35 AEST | Session 33 close
 
-Branch: macos-next | Last commit: see git log
+## Branch: macos-next | Last commit: see git log
 
-Full coordination: docs/AGENT-COORDINATION.md
+## Full coordination: docs/AGENT-COORDINATION.md
 
-Status feed: docs/STATUS-FEED.md
+## Status feed: docs/STATUS-FEED.md
 
 ---
 
 ## QUICK START FOR NEW AGENT
 
 ```bash
-# Boot mini normally (if not already booted)
-# Expected: Should complete boot with conservative AMFI settings
-
-# Once booted, connect via ONE of:
-ssh akmacks@100.86.233.5              # Tailscale
-ssh akmacks@192.168.2.2                # TB bridge
-ssh -p 2222 akmacks@localhost          # Reverse tunnel
+# SSH to mini (after it boots — Session 33 fix pending confirmation)
+ssh akmacks@100.86.233.5      # Tailscale
+ssh akmacks@192.168.2.2        # TB bridge
+ssh -p 2222 akmacks@localhost  # Reverse tunnel
 
 # Verify identity FIRST (mandatory)
 system_profiler SPHardwareDataType | grep "Hardware UUID"
 # Mini UUID: 575B0D7C-1560-502B-A87E-39C5E04C4891
 
-# Check system state
-nvram boot-args                        # should NOT show amfi_get_out_of_my_way
+# Check boot state
+nvram boot-args
 kextstat | grep -iE "5701|BCM|ethernet"
-ifconfig en0 2>/dev/null || echo "en0 absent — expected before patching"
+ifconfig en0 2>/dev/null || echo "en0 absent — patch not yet run"
 ```
 
 ---
 
-## ⚡ IMMEDIATE NEXT ACTION (Session 32 left off here)
+## ⚡ IMMEDIATE NEXT ACTION (Session 33 left off here)
 
-Mac mini was ejected from TDM with conservative boot-args applied (AMFI bypass removed). Next boot should complete successfully.
+Mini was in TDM. Preboot KC replaced with clean stock KC. Mini ejected.
+**Session 34 must first confirm mini has booted, then:**
 
-**1. Boot the Mac mini normally**
+**1. Remove -v from boot-args (once boot confirmed):**
+```bash
+sudo python3 -c "
+import plistlib, subprocess
+subprocess.run(['diskutil','mount','disk0s1'])
+p='/Volumes/EFI/EFI/OC/config.plist'
+with open(p,'rb') as f: d=plistlib.load(f)
+k='7C436110-AB2A-4BBB-A880-FE41995C9F82'
+d['NVRAM']['Add'][k]['boot-args']=d['NVRAM']['Add'][k]['boot-args'].replace(' -v','')
+with open(p,'wb') as f: plistlib.dump(d,f)
+print('Done')
+"
+```
 
-Expected outcomes:
-- ✅ Boot completes without hanging
-- ✅ Color desktop with GPU acceleration (Sandy Bridge patches intact from snapshot)
-- ✅ USB keyboard/mouse working
-- ❌ No Ethernet (BCM5722 kext not loaded — this is expected)
-
-**2. Establish SSH connection** (try methods in order listed above)
-
-**3. Mount root volume for patching:**
-
+**2. Mount root volume (PHT workaround):**
 ```bash
 sudo mount -o nobrowse -t apfs /dev/disk2s4 /System/Volumes/Update/mnt1
 ```
 
-**4. Run OCLP 3.0.0 patches from source:**
-
+**3. Run OCLP 3.0.0 root patch from source:**
 ```bash
-cd /Users/akmacks/Documents/GitHub/OpenCore-Legacy-Patcher
-sudo /usr/local/bin/python3.14 OpenCore-Patcher-GUI.command --patch_sys_vol --auto_patch 2>&1 | tee /tmp/oclp-session33-patch.log
+cd ~/Documents/GitHub/OpenCore-Legacy-Patcher
+sudo /usr/local/bin/python3.14 OpenCore-Patcher-GUI.command \
+  --patch_sys_vol --auto_patch 2>&1 | tee /tmp/oclp-session34-patch.log
 ```
 
-**5. After successful patch → reboot and verify:**
-
+**4. Reboot, then verify Ethernet:**
 ```bash
-kextstat | grep -i "5701"                # expect: AppleBCM5701Ethernet
-ifconfig en0                              # expect: MAC 3c:07:54:10:9e:a4
-networksetup -getinfo "Ethernet"         # expect: DHCP from router
-ping -c 3 -I en0 8.8.8.8                # expect: <50ms, 0% loss
+kextstat | grep -i "5701"        # expect: AppleBCM5701Ethernet
+ifconfig en0                      # expect: MAC 3c:07:54:10:9e:a4
+ping -c 3 -I en0 8.8.8.8        # expect: working internet
 ```
 
 ---
@@ -77,47 +76,34 @@ ping -c 3 -I en0 8.8.8.8                # expect: <50ms, 0% loss
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| macOS Tahoe 26.4 (25E246) | ✅ Should boot | Conservative AMFI settings applied |
-| NVRAM boot-args | ✅ Fixed | REMOVED `amfi_get_out_of_my_way=0x7ff` (was causing panic) |
-| NVRAM CSR | ✅ Fixed | `csr-active-config=0x0A03` from Session 31 |
-| Ethernet (BCM5722/en0) | 🟡 Pending patch | Will load after OCLP root patches run |
-| GPU / Desktop | ✅ Working | Sandy Bridge patches in snapshot |
-| USB HID | ✅ Working | USB 1.1 patches applied |
-| SSH tunnel | ❓ Unknown | Depends on successful boot |
-| Tailscale | ❓ Unknown | Was 100.86.233.5 in Session 31 |
-| Audio (ALC892) | 🟡 Pending patch | modern_audio.py fix applied (10.13.6 path) |
-| Wi-Fi | ❓ Unknown | Not investigated |
-| OCLP 3.0.0 from source | ✅ Ready | PHT bypass established, wx available |
-| APFS snapshot | ✅ Clean | Booting from system update snapshot |
+| macOS Tahoe 26.4 (25E246) | 🟡 Boot pending | Session 33 fix applied — not yet confirmed |
+| Preboot KC | 🟡 Replaced | Stock Mar 20 KC — should fix hang at 1/3 |
+| NVRAM amfi | ❌ Removed | Removed Session 32; conservative approach |
+| NVRAM CSR | ✅ `0x0A03` | NVRAM writes allowed |
+| boot-args `-v` | ✅ Active | Verbose boot for diagnostics |
+| Ethernet (BCM5722/en0) | 🟡 Patch pending | All blockers cleared; needs OCLP patch run |
+| GPU / Desktop | ✅ Expected | Sandy Bridge patches in EFI |
+| USB HID | ✅ Expected | EHCI kexts in EFI unchanged |
+| Audio (ALC892) | 🟡 Patch pending | modern_audio.py fixed (10.13.6) |
+| Wi-Fi (BCM4331) | ❓ Unknown | Not investigated recently |
+| SSH tunnel | ❓ Unknown | Will restore on boot |
+| Tailscale | ❓ Unknown | Was 100.86.233.5 — status on boot unknown |
+| OCLP from source | ✅ Working | PHT workaround established |
+| APFS snapshot | ✅ Clean | XID 2239951 |
 
 ---
 
-## KEY SESSION 32 CHANGES
+## KEY SESSION 33 CHANGES
 
-### OC config.plist (on EFI disk0s1)
-
-**CRITICAL CHANGE:**
-- **Removed** `amfi_get_out_of_my_way=0x7ff` from boot-args entirely
-- **Reason:** Was causing kernel panic/hang during boot on XNU 25
-- **New boot-args:** `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -igfxvesa`
-- **Backup:** `/Volumes/EFI/EFI/OC/config.plist.bak-before-conservative-boot`
-
-### New OCLP Patching Strategy (Two-Step Approach)
-
-**OLD (Failed):** Add AMFI bypass to boot-args → boot fails with panic
-
-**NEW (Correct):**
-1. Boot with NO AMFI bypass → system boots cleanly
-2. Add AMFI bypass ONLY during OCLP patch execution
-3. Result: Reliable boot + patches can be applied when needed
-
-### Project Session Manager Skill Created
-
-- **Version:** 1.0.0 Build 1
-- **Location (Claude):** `/mnt/skills/user/project-session-manager/SKILL.md`
-- **Location (Mac):** `~/dev/projects/skills/project-session-manager-SKILL.md`
-- **Purpose:** Automated session logging and AI agent coordination
-- **Status:** ✅ Active and operational
+- **Root cause of 36-hour boot failure identified:** Shutdown stall Apr 25 23:09 corrupted
+  `BootKernelExtensions.kc` in Preboot (softwareupdated was writing to Preboot during stall)
+- **Session 32 misdiagnosis corrected:** AMFI was NOT the cause; mini had booted fine after
+  Session 31 (proven by Apr 25/26 updater crash reports in DiagnosticReports)
+- **Fix:** Replaced Preboot KC with original stock KC from sealed System volume (Mar 20)
+  - Backup at: `Preboot/CA0B0049-.../BootKernelExtensions.kc.bak-session33-20260503-162629`
+- **Added `-v` to boot-args** for verbose diagnostic output
+- **MBP/mini build mismatch noted:** MBP=26.5(25F5068a), mini=26.4(25E246) — kmutil
+  rebuild from MBP not possible; must use mini's own kernel for KC operations
 
 ---
 
@@ -128,52 +114,37 @@ ping -c 3 -I en0 8.8.8.8                # expect: <50ms, 0% loss
 | Mini UUID | `575B0D7C-1560-502B-A87E-39C5E04C4891` |
 | Mini en0 MAC | `3c:07:54:10:9e:a4` (BCM5722 — not yet active) |
 | Mini en2 MAC | `82:0c:4d:eb:46:81` (TB bridge) |
-| OS disk | disk2s4 |
-| OC EFI disk | disk0s1 |
-| EFI backup (Session 32) | `/Volumes/EFI/EFI/OC/config.plist.bak-before-conservative-boot` |
-| EFI backup (Session 31) | `/Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452` |
-| python3.14 | `/usr/local/bin/python3.14` (wx present) |
-| KDK | `KDK_26.4_25E246.kdk` installed |
-| OCLP repo | `/Users/akmacks/Documents/GitHub/OpenCore-Legacy-Patcher/` |
-| Universal-Binaries.dmg | in OCLP repo `payloads/` |
+| OS disk | disk2s4 (when booted natively) |
+| OC EFI disk | disk0s1 (when booted natively) |
+| Preboot UUID | `CA0B0049-0C6D-4F80-9840-B1C2E25472C5` |
+| EFI backup | `config.plist.bak-20260425-181452` (Session 31) |
+| python3.14 | `/usr/local/bin/python3.14` |
+| OCLP repo (mini) | `~/Documents/GitHub/OpenCore-Legacy-Patcher/` |
+| Universal-Binaries.dmg | In OCLP repo `payloads/` |
+| KDK | `KDK_26.4_25E246.kdk` installed on mini |
 
 ---
 
 ## ROLLBACK PROCEDURES
 
-### If boot still fails after Session 32 fix
-
+### If boot still hangs after Session 33 fix
 ```bash
-# Boot mini in TDM (hold T)
-# From MBP, mount EFI and restore Session 31 config:
-diskutil mount disk8s1
-cp /Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452 /Volumes/EFI/EFI/OC/config.plist
-diskutil unmount /Volumes/EFI
-# Eject mini, boot normally
+# TDM → mount Preboot → restore backup KC
+PBUUID="CA0B0049-0C6D-4F80-9840-B1C2E25472C5"
+KC="/Volumes/Preboot/$PBUUID/boot/System/Library/KernelCollections/BootKernelExtensions.kc"
+cp "${KC}.bak-session33-20260503-162629" "$KC"
+# Then investigate verbose output (-v already in boot-args)
 ```
 
-### If patch run breaks boot
-
+### If OCLP patch run breaks boot
 ```bash
-# From Recovery Terminal or working SSH session:
-sudo mount -o nobrowse -t apfs /dev/disk2s4 /System/Volumes/Update/mnt1
 sudo /usr/sbin/bless --mount /System/Volumes/Update/mnt1 --bootefi --last-sealed-snapshot
 sudo reboot
 ```
 
-### If need to restore fully to Session 31 state
-
-```bash
-# From TDM, restore Session 31 EFI config (the one WITH amfi=0x7ff):
-cp /Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452 /Volumes/EFI/EFI/OC/config.plist
-```
-
 ### Emergency: mini unreachable
-
-1. Physical keyboard → check desktop
-2. Frozen: hold power 10s, cold boot
-3. Boot loop: hold Option → select macOS volume directly (bypasses OC)
-4. TDM: hold T → Thunderbolt to MBP → repair EFI
+1. Physical keyboard → check verbose boot output
+2. TDM (hold T) → Thunderbolt to MBP → repair EFI or Preboot
 
 ---
 
@@ -184,9 +155,9 @@ cp /Volumes/EFI/EFI/OC/config.plist.bak-20260425-181452 /Volumes/EFI/EFI/OC/conf
 - **Never kill the Ollama process** — only kill rescue-bot/curl
 - **Never use scp** — use rsync (`rsync -e ssh`)
 - **Never increment version numbers** — Adam's decision only
-- **Never apply Sandy Bridge GPU patches intentionally** — came through incidentally, leave alone
+- **Never apply Sandy Bridge GPU patches intentionally** — leave existing patches alone
 - **Never enable FileVault** on this system
 - `diskutil apfs revertSnapshot` **does not exist in Tahoe** — use `bless --last-sealed-snapshot`
-- `launchctl load/bootstrap` **broken for system daemons in Tahoe** — use `sudo /usr/sbin/sshd`
 - **PlistBuddy must NOT edit config.plist** — use Python plistlib only
-- **AMFI bypass should NOT be permanent in boot-args** — apply only during OCLP patching (Session 32 finding)
+- **MBP is Tahoe 26.5, mini is 26.4** — kmutil from MBP cannot build KC for mini
+- **Preboot KC must be rebuilt on mini natively** — or copied from System volume

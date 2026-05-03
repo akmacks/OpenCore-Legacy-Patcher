@@ -190,3 +190,22 @@ Also fixed: WhateverGreen headless framebuffer reverted (was crashing WindowServ
 **Next:** Boot mini normally → establish SSH → mount root volume → run OCLP patches from source → verify BCM5722 Ethernet kext loads.
 
 Full details: `docs/APP-DEV-LOGS/2026-05-03-SESSION-32.md`
+
+---
+
+### 🟡 Session 33 — Boot Recovery: Preboot KC Replaced from System Volume
+<sub>2026-05-03 · Claude 🤖 · MBP → Mini via TDM</sub>
+
+**Problem:** Mini stuck at ~1/3 progress bar for 36+ hours. Session 32's amfi fix did not resolve boot hang.
+
+**Root Cause:** Shutdown stall at 2026-04-25 23:09 corrupted `BootKernelExtensions.kc` in Preboot volume. softwareupdated .ips crash reports confirm update process was mid-write when system died. No kernel panic files = kext loading deadlock, not a panic.
+
+**Fix Applied:** Copied stock `BootKernelExtensions.kc` (March 20 timestamp, guaranteed clean for Tahoe 26.4 build) from sealed System volume to Preboot volume. Added `-v` verbose boot flag for diagnostics. Cross-build via kmutil not possible (MBP=26.5, Mini=26.4).
+
+**Key discovery:** MBP and mini are on different Tahoe builds — kmutil from MBP cannot rebuild KC for mini. Stock KC from System volume is the correct source.
+
+**Status:** Fix applied in TDM. Mini ejected and rebooting. Boot confirmation pending (Session 34).
+
+**Next:** Confirm boot in Session 34 → remove -v → run OCLP root patch for Ethernet + Audio.
+
+Full details: `docs/APP-DEV-LOGS/2026-05-03-SESSION-33.md`
