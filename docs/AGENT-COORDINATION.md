@@ -1,276 +1,326 @@
-# OCLP 3.0.0-alpha — Agent Coordination Document
-**Project:** OpenCore Legacy Patcher fork for Intel non-T2 Macs / macOS Tahoe  
-**Repo:** https://github.com/akmacks/OpenCore-Legacy-Patcher  
-**Branch:** macos-next  
-**Last updated:** 2026-04-12 11:45 AEST  
-**Updated by:** Claude (Cowork session 17 — recovery open)  
+# OCLP 3.0.0-alpha — Agent Coordination
+
+**Project:** OpenCore-Legacy-Patcher fork (Intel non-T2, macOS Tahoe)
+**Target:** Mac mini Server Late 2011 (Macmini5,3)
+**Updated:** 2026-05-03 | Session 34 close
+**Branch:** macos-next
+
+> This document is the task queue and work-assignment registry for all AI agents
+> working on this project. Read it before touching any code or running any commands.
+> The rules in SESSION-HANDOFF.md are ABSOLUTE and apply to all agents.
 
 ---
 
-## PURPOSE OF THIS DOCUMENT
+## 🔑 CURRENT STATUS (as of Session 34 close)
 
-This is the single shared coordination file for all AI agents working on this
-project: Claude (claude.ai), OpenClaw (local Ollama on MBP), Claude Code (Xcode/
-Codex sessions), and any future agents. Any agent that reads this file has a
-complete picture of current status, pending work, and how to hand off to the next.
-
-Agents MUST append to `docs/STATUS-FEED.md` when they complete any unit of work.
-Agents MUST update this file's "Current State" section when session ends.
-Agents MUST NOT increment version numbers autonomously.
-
----
-
-## MACHINES
-
-| Role | Model | ID | Bridge IP | Tailscale IP | SSH |
-|------|-------|----|-----------|--------------|-----|
-| MBP (gateway/dev) | MacBookPro16,1 | T2 Mac | 192.168.2.1 | 100.88.164.12 | direct |
-| Mini (target) | Macmini5,3 | Sandy Bridge | 192.168.2.2 | 100.86.233.5 | port 2222 (tunnel) or 192.168.0.111 (Ethernet, when up) |
-
-SSH to mini from MBP: `ssh -p 2222 akmacks@localhost` (after tunnel-pro on mini)  
-Or direct: `ssh akmacks@192.168.2.2` (TB bridge) / `ssh akmacks@192.168.0.111` (Ethernet)  
-Mini OCLP repo: `~/OpenCore-Legacy-Patcher/`  
-MBP OCLP repo: `~/Documents/Github/OpenCore-Legacy-Patcher/`  
+| Item | State |
+|------|-------|
+| Mini boot status | 🟡 Boot pending — fixes applied, ejected from TDM |
+| Root cause of boot failure | ✅ Found and fixed (corrupt Aux KC + /LE duplicates) |
+| Preboot KC | ✅ Clean (Session 33) |
+| /Library/Extensions | ✅ Clean (Session 34) |
+| Aux KC | 🟡 Will rebuild on first boot |
+| Ethernet (BCM5722) | ❌ Not yet patched — next milestone |
+| USB HID | ❓ Needs verification on boot |
+| Audio | ❌ Not yet patched |
+| GPU patches | ❌ NEVER — absolute rule |
+| OCLP GPU exclusion guard | ❌ Not implemented (Task B below) |
+| Session 35 | ⚡ Ready to start |
 
 ---
 
-## CURRENT STATE (as of 2026-04-10 session 16 close)
+## ✅ COMPLETED TASKS (Sessions 1–34)
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| macOS Tahoe 26.4 (25E246) | 🔴 FROZEN | Froze Fri night — needs TDM rollback |
-| OpenCore EFI | ✅ Active | On disk0s1 |
-| USB 1.1 (OHCI/UHCI) | ✅ Patched | AppleUSBUHCI loaded (as of Session 16) |
-| Sandy Bridge GPU | ✅ Patched | Stable (as of Session 16) |
-| High Sierra GVA | ✅ Patched | Loaded (as of Session 16) |
-| Ethernet BCM57765 | ❌ Not loading | CatalinaBCM5701 absent from kextstat |
-| Wi-Fi BCM4331 | 🟡 Partial | AirportBrcmFixup loaded, no en1 interface |
-| Bluetooth | 🟡 Loaded | BlueToolFixup loaded, pairing untested |
-| Audio ALC892 | ❓ Unknown | modern_audio skipped (missing payload) |
-| SSH access | ❌ Down | Mini frozen — tunnel not running |
-| Internet | ❌ Down | TB bridge down (mini in TDM) |
-| Tailscale | ❓ Unknown | Was 100.86.233.5 — status unknown while frozen |
-| APFS snapshot | ❓ Unknown | XID 2239951 was last sealed; Apr 11 may have created new one |
-| TDM disk | ❌ Not visible | TB cable reseat required on MBP |
+### Infrastructure & Boot Foundation
+- [x] Extend OS ceiling: Sequoia → Tahoe in detect.py
+- [x] Add `is_patching_external_volume` flag to constants.py
+- [x] External disk detection companion in wx_gui/gui_main_menu.py
+- [x] AppleHDA PSP 15.2 fallback in modern_audio.py
+- [x] `sudo` subprocess wrapper in subprocess_wrapper.py (dev only)
+- [x] Add Macmini5,1/5,2/5,3 to USB 1.1 patchset (usb11.py)
+- [x] Created TAHOE-DEV-LOG.md in repo
+- [x] PHT workaround for OCLP root patch from source (python3.14)
+- [x] SSH config setup: `Host mini` / `Host pro` aliases on both machines
+- [x] Removed 1Password IdentityAgent interference from SSH config
+- [x] OpenCore EFI baseline established (22 kexts injected)
+- [x] IOSkywalkFamily injection chain working via OC Kernel->Block
+- [x] USB-Map.kext v1.0 deployed (intentionally inert — EHCI handles USB on Tahoe)
+- [x] EHCI EHC1→EH01 / EHC2→EH02 ACPI renames applied and verified
+- [x] USB power restored (Session 19): USB-Map-Tahoe.kext Tahoe-format keys
+- [x] WhateverGreen headless framebuffer configured (-igfxvesa)
+- [x] LaunchAgent set repaired (nat-persist.disabled on mini, bridge-ip.disabled on MBP)
+- [x] Sandy Bridge GPU patches kept in EFI (desktop rendering OK with VESA)
+- [x] Preboot BootKernelExtensions.kc replaced with stock clean KC (Session 33)
+- [x] Corrupt AuxiliaryKernelExtensions.kc deleted (Session 34)
+- [x] /Library/Extensions cleaned of duplicates and alien kexts (Session 34)
 
----
-
-## PRIORITY WORK QUEUE
-
-Agents pick tasks from top to bottom. Mark in-progress with your agent name.
-
-### 🔴 P1 — Ethernet (BCM57765 / pci14e4,16b4)
-
-**Problem:** `CatalinaBCM5701Ethernet.kext` injected via EFI but not loading on XNU 25.
-- Device confirmed present: `pci14e4,16b4` in ioreg ✅
-- IONameMatch includes `pci14e4,16b4` ✅
-- MinKernel: 20.0.0, MaxKernel: empty ✅
-- `amfi_get_out_of_my_way=0x7ff` added to boot-args ✅
-- Still not in kextstat ❌
-
-**Next steps:**
-1. Check kernel log at boot for kext rejection: `log show --last boot | grep -i "BCM5701\|CatalinaBCM\|kext.*reject\|deny"`
-2. Verify kext binary is correctly signed/unsigned for injection
-3. Check if `SecureBootModel: Disabled` in OC config is actually taking effect
-4. Consider adding kext to `ForceKextsToLoad` array in OC config
-5. Alternative: derive fresh Find/Replace kernel patch from KDK_26.4_25E246.kdk
-
-**Files:**
-- EFI kext: `/Volumes/EFI/EFI/OC/Kexts/CatalinaBCM5701Ethernet.kext`
-- OC config: `/Volumes/EFI/EFI/OC/config.plist`
-- KDK: `/Library/Developer/KDKs/KDK_26.4_25E246.kdk`
-
-### 🟡 P2 — Wi-Fi (BCM4331 / pci14e4,4331)
-
-**Problem:** `AirportBrcmFixup 2.1.9` loaded but no `en1` interface appears.
-- Likely needs `IO80211FamilyLegacy.kext` root patch (legacy_wireless.py patchset)
-- Bug 2 fix already committed (XNU cap at sequoia value in legacy_wireless.py)
-- Root patch not yet applied for wireless
-
-**Next steps:**
-1. Run legacy_wireless root patch (filter same as USB approach)
-2. Reboot and check for en1 interface
-3. Verify Wi-Fi networks visible in menu bar
-
-### 🟡 P3 — Audio (ALC892)
-
-**Problem:** `modern_audio.py` patch skipped — AppleHDA.kext missing from 15.2 payload.
-- Sequoia fallback (15.4) may work — investigate
-- Check if `AppleALC.kext` in EFI is loading and matching ALC892
-
-**Next steps:**
-1. `kextstat | grep -i "audio\|HDA\|ALC"`
-2. `system_profiler SPAudioDataType`
-3. If AppleALC loaded but no sound: check layout-id in OC config
-
-### 🟢 P4 — Bluetooth pairing test
-
-BlueToolFixup 2.6.9 + IOBluetoothFamily 9.0 both loaded.
-Just needs a physical test — pair a device and verify.
+### Diagnostics & Process
+- [x] Confirmed: `diskutil apfs revertSnapshot` does not exist on Tahoe
+- [x] Confirmed: `mount -uw /` rejected on Tahoe APFS SSV
+- [x] Confirmed: kmutil from MBP cannot cross-build KC for mini (different Tahoe builds)
+- [x] Confirmed: Sandy Bridge GPU patches (Intel HD 3000) cause kernel panic on Tahoe
+- [x] Confirmed: USB 1.1 kext injection via OCLP root patch crashes mini (Darwin 25+)
+- [x] Confirmed: MBP = Tahoe 26.5 (25F5068a); mini = Tahoe 26.4 (25E246) — different builds
+- [x] Confirmed: nat-persist must ONLY be on MBP (gateway) — never on mini
+- [x] Project Session Manager skill created (v1.0.0 Build 1)
 
 ---
 
-## CURRENT STATE — Session 19 close (2026-04-13)
+## ⚡ ACTIVE TASK QUEUE (Session 35+)
 
-| Area | Status | Notes |
-|---|---|---|
-| Boot | ✅ Stable | OpenCore, snapshot XID 2415851 |
-| Tunnel | ✅ Up | 192.168.2.1↔192.168.2.2, reverse SSH :2222 |
-| USB (via hub) | ✅ Working | USB-Map-Tahoe format, EHC1/EHC2 ACPI renames applied (EH01/EH02) |
-| Keyboard/Mouse | ✅ Working | Via USB hub |
-| GPU (HD 3000) | ✅ Patched | kexts injected |
-| WhateverGreen | ✅ Clean | Headless framebuffer removed from EFI |
-| LaunchAgents | ✅ Clean | nat-persist.disabled (mini), bridge-ip.disabled (MBP) |
-| Ethernet BCM57765 | 🔴 Dead | Kext loaded, device not coming up — next target |
-| Wi-Fi BCM4331 | ⚠️ Unknown | Root patch applied, not verified |
-| Audio ALC892 | ⚠️ Unknown | Fallback kext, not verified |
-| OCLP repo (MBP) | ✅ Current | macos-next, 26A04 — Session 21 docs written |
-| OCLP repo (mini) | ⚠️ Needs sync | rsync pending after session close |
-
-## PRIORITY WORK QUEUE
-
-### 🔴 P1 — Ethernet BCM57765
-
-Kext `CatalinaBCM5701Ethernet.kext` is in EFI and kernel patch is active, but device is not
-coming up. Investigation needed on live boot:
+### TASK S35-1 — Confirm Mini Boot After Session 34 Fix [FIRST PRIORITY]
+**Status:** 🟡 Pending (Session 35)
+**Agent:** Any (OpenClaw / Hermes / Claude)
+**Effort:** 15 min
 
 ```bash
-# SSH to mini
-ssh -p 2222 akmacks@localhost
-
-# Check if kext matched device
-kextstat | grep -i "BCM\|5701\|ethernet"
-ioreg -p IOService -c IOEthernetController -r -w 0 | head -40
-
-# Kernel log for matching errors
-log show --last 5m --predicate 'process == "kernel"' 2>&1 | grep -iE "BCM|5701|57765|ethernet"
-
-# Check device ID in IORegistry
-ioreg -l | grep -iE "pci14e4|BCM|ethernet" | grep -i "vendor\|product\|device\|class"
+# 1. SSH check
+ssh akmacks@192.168.2.2 "echo alive && ioreg -d2 -c IOPlatformExpertDevice | grep UUID"
+# 2. Verify IOSkywalkFamily loaded
+kextstat | grep -iE "IOSkywalk|Lilu|RestrictEvents"
+# 3. Check /Library/Extensions is clean (SATSMARTDriver only)
+ls /Library/Extensions/
+# 4. Check Aux KC was rebuilt
+ls -la /Library/KernelCollections/
 ```
 
-### 🟡 P2 — Wi-Fi BCM4331
+**Expected outcome:** Mini booted, IOSkywalkFamily loaded, Aux KC rebuilt clean.
+**If boot fails:** See fallback procedure in SESSION-HANDOFF.md.
 
-`IO80211FamilyLegacy.kext` + `IOSkywalkFamily.kext` in EFI. Check if associated or just loaded:
+---
+
+### TASK S35-2 — Remove -v from boot-args [After Boot Confirmed]
+**Status:** 🟡 Pending (Session 35)
+**Agent:** Any
+**Effort:** 5 min
+**Depends on:** S35-1 success
 
 ```bash
-/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I
-kextstat | grep -i "wireless\|80211\|brcm"
-```
-
-### 🟡 P3 — Audio ALC892
-
-`AppleALC.kext` in EFI with layout-id 90. Verify:
-
-```bash
-kextstat | grep -i "audio\|HDA\|ALC"
-system_profiler SPAudioDataType 2>/dev/null
-```
-
-### 🟢 P4 — Snapshot Lock & OCLP Patcher Test
-
-After BCM57765 investigation:
-1. Create named APFS snapshot: `sudo tmutil localsnapshot /`
-2. Note snapshot UUID for rollback reference
-3. Run OCLP patcher 26A03 on mini to verify it applies cleanly
-
----
-
-## CODE BUGS (both fixed in commit 7d28f4d)
-
-
-| # | File | Bug | Status |
-|---|------|-----|--------|
-| 1 | `constants.py` | `legacy_accel_support` missing `os_data.tahoe` | ✅ Fixed |
-| 2 | `legacy_wireless.py` | XNU payload key requests `12.7.2-25` (doesn't exist) | ✅ Fixed |
-
----
-
-## DEV TOOLS ON MINI
-
-| Tool | Location | Purpose |
-|------|----------|---------|
-| run_patch_complete.py | `~/run_patch_complete.py` | Full patch runner (wx stub) |
-| run_usb11_patch.py | `~/run_usb11_patch.py` | USB 1.1 only filter |
-| Universal-Binaries.dmg | `~/OpenCore-Legacy-Patcher/payloads/` | Payload source |
-| KDK | `/Library/Developer/KDKs/KDK_26.4_25E246.kdk` | Kernel debug kit |
-| python3.14 | `/usr/local/bin/python3.14` | Required for OCLP scripts |
-
----
-
-## AGENT HANDOFF PROTOCOL
-
-When ending a session, every agent must:
-1. Append a status update to `docs/STATUS-FEED.md` (see format below)
-2. Update "Current State" table above
-3. Update "Priority Work Queue" — remove completed items, add new ones
-4. `git add -A && git commit -m "agent: [agent-name] session [N] close" && git push origin macos-next`
-5. If on mini, rsync or push any changes back to MBP
-
----
-
-## RSYNC (mini → MBP, no SCP — SFTP subsystem missing)
-
-```bash
-# From MBP — pull from mini
-rsync -avz -e "ssh -p 2222" akmacks@localhost:~/OpenCore-Legacy-Patcher/ \
-  ~/Documents/Github/OpenCore-Legacy-Patcher/
-
-# From MBP — push to mini  
-rsync -avz ~/Documents/Github/OpenCore-Legacy-Patcher/ \
-  -e "ssh -p 2222" akmacks@localhost:~/OpenCore-Legacy-Patcher/
+sudo python3 -c "
+import plistlib, subprocess
+subprocess.run(['diskutil','mount','disk0s1'], capture_output=True)
+p='/Volumes/EFI/EFI/OC/config.plist'
+with open(p,'rb') as f: d=plistlib.load(f)
+k='7C436110-AB2A-4BBB-A880-FE41995C9F82'
+ba=d['NVRAM']['Add'][k]['boot-args']
+d['NVRAM']['Add'][k]['boot-args']=ba.replace(' -v','').replace('-v ','').replace('-v','')
+with open(p,'wb') as f: plistlib.dump(d,f)
+"
 ```
 
 ---
 
-## CURRENT STATE — Session 33 close (2026-05-03 16:35 AEST)
+### TASK S35-3 — Apply Ethernet Patch (BCM5722D — Build 2) [HIGH PRIORITY]
+**Status:** 🟡 Pending (Session 35)
+**Agent:** Any
+**Effort:** 30 min
+**Depends on:** S35-1 success
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| macOS Tahoe 26.4 (25E246) | 🟡 Boot pending | KC replaced — awaiting Session 34 boot confirm |
-| OpenCore EFI | ✅ Active | boot-args: `keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -igfxvesa -v` |
-| Preboot KC | 🟡 Replaced | Stock March 20 KC copied from System volume; old KC backed up |
-| USB (via hub) | ✅ Working | USB-Map-Tahoe format (as of Session 19) |
-| Sandy Bridge GPU | ⛔ Not applied | Fatal on Tahoe — Macmini5,3 headless, not needed |
-| USB 1.1 patchset | ⛔ Not applied | ABI-incompatible with Tahoe — do not apply |
-| Ethernet BCM57765 | 🔴 Pending patch | OCLP root patch not yet run — Session 34 target |
-| Audio ALC892 | 🔴 Pending patch | OCLP root patch not yet run — Session 34 target |
-| Wi-Fi BCM4331 | ⚠️ Unknown | Root patch applied (Session 19), not re-verified |
-| SSH access | ❌ Down | Mini rebooting — tunnel not yet running |
-| AMFI in boot-args | ❌ Not present | Removed Session 32 (conservative); add only during patch run |
-| TDM disk | ✅ Ejected | Mini released from TDM, rebooting normally |
+The BCM5722D kext is the next major milestone. It gives the mini wired network access
+independent of the Thunderbolt Bridge.
 
-**Critical environment fact:** MBP=Tahoe 26.5 (25F5068a), Mini=Tahoe 26.4 (25E246).  
-`kmutil` from MBP CANNOT build KC for mini — build mismatch. Use stock System volume KC.
+**Patchset file:** `sys_patch/patchsets/hardware/networking/ethernet/broadcom_bcm5722.py`
+**Kext payload:** `payloads/Kexts/Ethernet/BCM5722D.kext`
 
-## PRIORITY WORK QUEUE — Session 34
-
-### 🔴 P0 — Confirm mini boots (Session 34 first step)
-Verbose boot active (`-v`). Check for KC load lines in boot output. If boot succeeds:
-1. Remove `-v` from OC boot-args
-2. Verify USB hub, desktop accessible, tunnel up
-3. Proceed to P1
-
-### 🔴 P1 — Run OCLP root patch (Ethernet + Audio)
-Prerequisites: mini booted, SSH accessible, amfi added back for patch run only.
 ```bash
-# On MBP — SSH to mini
-ssh akmacks@192.168.2.2   # TB bridge, or
-ssh -p 2222 akmacks@localhost  # tunnel
+# Run OCLP patch pipeline:
+cd ~/Documents/GitHub/OpenCore-Legacy-Patcher
+sudo /usr/local/bin/python3.14 OpenCore-Patcher-GUI.command --patch_sys_vol 2>&1 | tee /tmp/oclp-s35-eth.log
 
-# On mini — run OCLP patch from source
-cd ~/OpenCore-Legacy-Patcher
-sudo python3.14 OpenCore-Patcher.py --gui  # or headless equivalent
-```
-**Do NOT apply:** Sandy Bridge GPU patchset, USB 1.1 (IOUSBHostFamily) patchset.
+# ⚠️ REVIEW LOG before rebooting:
+grep -iE "GPU|Sandy|HD3000|AMD|Terascale" /tmp/oclp-s35-eth.log
+# Expected: NO GPU kexts in log output
 
-### 🟡 P2 — Verify Wi-Fi BCM4331
-```bash
-airport -I
-kextstat | grep -i "80211\|brcm"
+# After reboot, verify:
+kextstat | grep -i "5701"         # AppleBCM5701Ethernet
+ifconfig en0                       # MAC: 3c:07:54:10:9e:a4
+ping -c 3 -I en0 8.8.8.8         # Internet reachable
 ```
 
-### 🟢 P3 — Remove -v from boot-args (after boot confirmed)
+**Git tag on success:** `v3.0.0-alpha-build2-usb-eth`
+
+---
+
+### TASK S35-4 — Apply Audio Patch (AppleHDA / ALC892 — Build 4) [MEDIUM PRIORITY]
+**Status:** 🟡 Pending (after Ethernet)
+**Agent:** Any
+**Effort:** 20 min
+**Depends on:** S35-3 success
+
+**Patchset file:** `sys_patch/patchsets/hardware/audio/modern_audio.py`
+(PSP 15.2 fallback already implemented — Session 2)
+
+**Validate:** System Preferences → Sound → Output shows speakers; audio plays.
+
+---
+
+### TASK S35-5 — Verify USB HID Works On Current Boot [CHECK]
+**Status:** 🟡 Pending (Session 35)
+**Agent:** Any
+**Effort:** 5 min
+
+Check if keyboard/mouse work on the mini without a USB root patch. The current boot
+uses the sealed snapshot — USB depends on EHCI ACPI enumeration without OCLP kext
+injection. If USB HID works, no patch needed. If not, see recovery in SESSION-HANDOFF.
+
+```bash
+# Via SSH:
+kextstat | grep -iE "EHCI|UHCI|OHCI|USB"
+ioreg -l | grep -i "USB" | head -20
+```
+
+---
+
+### TASK B — GPU Exclusion Guard for Macmini5,x (OCLP Code Change) [CRITICAL / BLOCKING]
+**Status:** 🔴 Not started (blocking sustainable OCLP pipeline)
+**Agent:** OpenClaw / Hermes-Agent / OpenCode (code-capable agent)
+**Effort:** 2–4h
+**Location:** `sys_patch/patchsets/hardware/graphics/`
+
+**Background:** OCLP's PatchSysVolume currently bundles Sandy Bridge GPU patches
+with USB/Ethernet patches for Macmini5,3. Sandy Bridge GPU patches are FATAL on
+Tahoe (confirmed twice). The OCLP pipeline cannot be used safely until GPU patches
+are excluded for this model.
+
+**Implementation pattern** (mirror usb11.py model-inclusion pattern):
 ```python
-# plistlib edit of /Volumes/EFI/EFI/OC/config.plist — remove -v token
+# In each GPU patchset class (Sandy Bridge + AMD Terascale):
+EXCLUDED_MODELS = ["Macmini5,1", "Macmini5,2", "Macmini5,3"]
+
+@classmethod
+def is_needed(cls, global_constants: Constants) -> bool:
+    if hw_probe.GlobalEnv.computer.real_model in cls.EXCLUDED_MODELS:
+        return False
+    # ... existing detection logic ...
 ```
+
+**Files to modify:**
+- `sys_patch/patchsets/hardware/graphics/intel_sandy_bridge.py` (primary target)
+- `sys_patch/patchsets/hardware/graphics/amd_terascale_1.py` (AMD 6630M on Macmini5,3)
+- `sys_patch/patchsets/hardware/graphics/amd_terascale_2.py` (if exists)
+
+**Investigation first (Task A):**
+```
+sys_patch/sys_patch_detect.py → DetectRootPatches
+→ Trace how IntelSandyBridgeGraphics gets added to hardware_details for Macmini5,3
+→ Confirm whether hardware_details override prevents GPU kexts from writing
+```
+
+**Verification after implementation (Task C):**
+1. Run OCLP PatchSysVolume on TDM-mounted mini disk
+2. `ls /Volumes/<mini-system>/System/Library/Extensions/ | grep -iE 'AMD|Intel.*3000|HD3000'`
+   Expected: EMPTY (no GPU kexts)
+3. Confirm USB kexts ARE present: `ls ... | grep -iE 'UHCI|OHCI'`
+
+**Git tag on success:** `v3.0.0-alpha-gpu-exclusion`
+
+---
+
+### TASK W — Wi-Fi Patch (BCM4331 — Build 3) [LOW PRIORITY]
+**Status:** ❓ Not investigated
+**Agent:** Any
+**Effort:** TBD
+**Depends on:** Ethernet working
+**Note:** Wi-Fi is lower priority than Ethernet. Mini has TB bridge + Ethernet for
+connectivity. Wi-Fi is a nice-to-have.
+
+---
+
+### TASK BT — Bluetooth Patch (Build 5) [LOW PRIORITY]
+**Status:** ❓ Not started
+**Agent:** Any
+**Effort:** TBD
+**Depends on:** Audio working
+
+---
+
+## 📋 AGENT ASSIGNMENT GUIDE
+
+### For Claude (Anthropic Cowork / API)
+- Best for: Diagnostics, TDM investigation, file reading, coordination docs, session logging
+- Use for: All tasks involving reading mini's disk state from MBP via TDM
+- Limitation: Cannot run `sudo` commands via Desktop Commander (silently fails)
+  → Pass commands to user for manual terminal execution
+
+### For OpenClaw (local Ollama / KimiDev on MBP at localhost:18789)
+- Best for: OCLP codebase changes, diffs, Python modifications, `sys_patch/` analysis
+- Use for: Task B (GPU exclusion guard), patchset investigations
+- Paste SESSION-HANDOFF.md as context before starting
+- Cannot SSH into machines — reads/writes via Desktop Commander only
+- Model preference: `gpt-oss:20b` (fallback: `qwen3:4b`)
+- **Never run inference on mini** — MBP only
+
+### For Hermes-Agent / OpenCode
+- Best for: Multi-step coding tasks requiring iteration and testing
+- Use for: Task B (GPU exclusion) if OpenClaw unavailable
+- Must read this file + SESSION-HANDOFF.md before starting
+
+### For any agent running commands on mini via SSH
+- Always verify UUID first
+- Always use `ioreg` not `system_profiler` (too slow)
+- Always `rsync -e ssh` not `scp`
+- Use `bless --last-sealed-snapshot` not `diskutil apfs revertSnapshot`
+
+---
+
+## 🗂️ KEY FILE LOCATIONS
+
+```
+opencore_legacy_patcher/
+├── sys_patch/
+│   ├── sys_patch.py                  ← PatchSysVolume entry point
+│   ├── sys_patch_detect.py           ← hardware_details population (Task A target)
+│   ├── sys_patch_generate.py         ← maps hardware_details → patchset list
+│   └── patchsets/hardware/
+│       ├── graphics/                 ← GPU patchsets (Task B target — ADD EXCLUSION)
+│       │   ├── intel_sandy_bridge.py ← Sandy Bridge GPU — NEEDS Macmini5,x EXCLUSION
+│       │   └── amd_terascale*.py     ← AMD 6630M — NEEDS Macmini5,x EXCLUSION
+│       ├── usb/usb11.py              ← USB 1.1 (model-inclusion already done) ✅
+│       ├── networking/ethernet/
+│       │   └── broadcom_bcm5722.py   ← BCM5722D Ethernet (Task S35-3 target)
+│       └── audio/modern_audio.py     ← AppleHDA PSP 15.2 fallback (already fixed) ✅
+├── constants.py                      ← Model support, is_patching_external_volume flag
+├── detect.py                         ← OS ceiling extended to Tahoe ✅
+└── payloads/Kexts/
+    ├── USB/                          ← AppleUSBUHCI, UHCIPCI, OHCI, OHCIPCI
+    ├── Ethernet/                     ← BCM5722D.kext
+    └── Graphics/                     ← AMD/Intel kexts (don't inject for Macmini5,3)
+```
+
+---
+
+## 📊 BUILD PIPELINE STATUS
+
+```
+BUILD 1 — USB Only
+  Status: ✅ Manual (fragile — not via OCLP pipeline; needs Task B first)
+  Kexts: AppleUSBUHCI, AppleUSBUHCIPCI, AppleUSBOHCI, AppleUSBOHCIPCI
+  Validation: Keyboard + mouse work
+
+BUILD 2 — Ethernet        ← ⚡ NEXT TARGET (Session 35)
+  Status: 🟡 Ready to run once boot confirmed
+  Kext: BCM5722D.kext
+  Validation: en0 MAC visible; ping 8.8.8.8
+  Tag: v3.0.0-alpha-build2-usb-eth
+
+BUILD 3 — Wi-Fi           ← After Build 2
+  Status: ❓ Not yet started
+  Tag: v3.0.0-alpha-build3-usb-eth-wifi
+
+BUILD 4 — Audio           ← After Build 3 (or parallel with Build 2)
+  Status: 🟡 Patchset ready (modern_audio.py fixed)
+  Tag: v3.0.0-alpha-build4-usb-eth-wifi-audio
+
+BUILD 5 — Bluetooth       ← After Build 4
+  Status: ❌ Not started
+  Tag: v3.0.0-alpha-build5-usb-eth-wifi-audio-bt
+
+BUILD 6 — GPU             ← LAST, after Task B implemented + separate GPU test
+  ⚠️ DO NOT ATTEMPT until Sandy Bridge GPU crash isolated and Task B in place
+  Tag: v3.0.0-alpha-build6-full
+```
+
+---
+
+*Document last substantively updated: 2026-05-03 (Session 34 close)*
+*Previous update was 2026-04-12 (Session 16) — this is a major refresh*

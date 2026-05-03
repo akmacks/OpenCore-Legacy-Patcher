@@ -209,3 +209,36 @@ Full details: `docs/APP-DEV-LOGS/2026-05-03-SESSION-32.md`
 **Next:** Confirm boot in Session 34 → remove -v → run OCLP root patch for Ethernet + Audio.
 
 Full details: `docs/APP-DEV-LOGS/2026-05-03-SESSION-33.md`
+
+---
+
+### 🟡 Session 34 — Aux KC Corruption Found & Fixed: IOSkywalkFamily Boot Failure
+<sub>2026-05-03 · Claude 🤖 · MBP → Mini via TDM</sub>
+
+**Problem:** Mini still not booting after Session 33's Preboot KC replacement. Verbose
+boot log (screenshot) showed `com.apple.iokit.IOSkywalkFamily not found` error chain
+starting at `com.apple.driver.AppleIPAppender`.
+
+**Root Cause:** `AuxiliaryKernelExtensions.kc` in Data volume (rebuilt 2026-04-26)
+contained `RestrictEvents.kext` with a baked-in fatal binding error:
+`Failed to bind '_cpuid_info' in 'as.vit9696.RestrictEvents'`. This broke Lilu's
+early-boot patching chain. OC's injected IOSkywalkFamily could not initialise without
+Lilu → all downstream kexts failed. Note: OC's `Kernel->Block` entry ensures only the
+injected IOSkywalkFamily version loads — so when injection fails, nothing loads.
+
+**Fix Applied:**
+1. Deleted corrupt `AuxiliaryKernelExtensions.kc` from Data volume
+2. Purged `/Library/Extensions` of duplicate and alien kexts:
+   - Removed: RestrictEvents, Lilu, AppleALC (all duplicates — OC injects from EFI)
+   - Removed: HighPointIOP, HighPointRR, Pegasus2R2ICON, PromiseSTEX (no hardware match)
+   - Kept: SATSMARTDriver.kext + SATSMARTLib.plugin (benign)
+3. macOS will rebuild fresh Aux KC on next boot from clean /LE state
+
+**Both corruptions now fixed:** Session 33 fixed Preboot KC; Session 34 fixed Aux KC.
+Both were caused by the same 2026-04-25 23:09 shutdown stall.
+
+**Status:** Mini ejected from TDM. Boot confirmation is first task of Session 35.
+
+**Next:** Boot → verify IOSkywalkFamily chain → remove -v → Ethernet patch (BCM5722D).
+
+Full details: `docs/APP-DEV-LOGS/2026-05-03-SESSION-34.md`
